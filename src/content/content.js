@@ -20,7 +20,8 @@
     { loadSettings },
     { saveBackup },
     { normalizeItem },
-    { recordObserved },
+    { recordObserved, listObserved },
+    { parseMemberIdFromPath, resolveUserId },
   ] = await Promise.all([
     import(base('src/lib/api.js')),
     import(base('src/lib/relist.js')),
@@ -29,6 +30,7 @@
     import(base('src/lib/backup.js')),
     import(base('src/lib/item-mapper.js')),
     import(base('src/lib/observed.js')),
+    import(base('src/lib/user-id.js')),
   ]);
 
   /** @type {AbortController|null} */
@@ -52,15 +54,41 @@
     return { api, settings };
   }
 
+  /**
+   * Which account to list. GET /api/v2/users/current is retired — the site no
+   * longer calls it and it answers with a protection page — so the id comes
+   * from the profile URL, an earlier visit, or the traffic the site itself
+   * made. See src/lib/user-id.js.
+   */
+  async function currentUserId() {
+    const settings = await loadSettings();
+    const [{ knownUserId }, observed] = await Promise.all([
+      chrome.storage.local.get('knownUserId'),
+      listObserved(),
+    ]);
+
+    const resolved = resolveUserId({
+      override: settings.userId,
+      remembered: knownUserId,
+      pathname: location.pathname,
+      observed,
+    });
+
+    if (!resolved.id) {
+      throw new Error(
+        'Kon je Vinted gebruikers-id niet bepalen. Open je eigen profielpagina ' +
+          '(de pagina met je advertenties) en probeer opnieuw, of vul het id in bij de instellingen.',
+      );
+    }
+    return resolved;
+  }
+
   async function handleListItems({ page = 1, perPage = 20 } = {}) {
     const { api } = await makeApi();
-    const user = await api.getCurrentUser();
-    if (!user?.id) {
-      throw new Error('Niet ingelogd op Vinted. Log in en probeer opnieuw.');
-    }
+    const user = await currentUserId();
     const { items, pagination } = await api.listOwnItems(user.id, { page, perPage });
     return {
-      user: { id: user.id, login: user.login ?? null },
+      user: { id: user.id, source: user.source },
       pagination,
       items: items.map((raw) => {
         const item = normalizeItem(raw);
@@ -128,6 +156,11 @@
   // right domain later even when no Vinted tab is left open.
   send(MSG.HELLO, { origin: location.origin });
 
+  // Being on a profile page is the one moment the account id is available for
+  // free — no API call, no guessing. Remember it for later.
+  const idFromPath = parseMemberIdFromPath(location.pathname);
+  if (idFromPath) chrome.storage.local.set({ knownUserId: idFromPath });
+
   // The recorder runs in the page's own context and cannot reach chrome.*;
   // relay what it sees into extension storage. Its messages carry only a
   // method, a path, query parameter names and a status code.
@@ -147,7 +180,19 @@
       [MSG.LIST_ITEMS]: () => handleListItems(message.payload),
       [MSG.DIAGNOSE]: async () => {
         const { api } = await makeApi();
-        return api.diagnose();
+        const report = await api.diagnose();
+        // The account id no longer comes from the API, so report separately
+        // how it was resolved — that is what actually decides whether the
+        // extension can list anything.
+        try {
+          const user = await currentUserId();
+          report.resolvedUserId = user.id;
+          report.userIdSource = user.source;
+        } catch (error) {
+          report.resolvedUserId = null;
+          report.userIdSource = error.message;
+        }
+        return report;
       },
       [MSG.START]: () => handleStart(message.payload),
       [MSG.CANCEL]: async () => handleCancel(),

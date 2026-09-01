@@ -21,7 +21,8 @@ Voor Firefox is een aparte build nodig; die zit er nu niet in.
 
 ## Gebruiken
 
-1. Log in op Vinted en houd dat tabblad open.
+1. Log in op Vinted en open je eigen profielpagina — daar leest de extensie je
+   gebruikers-id uit de URL. Houd dat tabblad open.
 2. Klik op het extensie-icoon. Je advertenties verschijnen in de lijst.
 3. Vink aan wat je wilt relisten en klik **Relist selectie**.
 4. Bevestig. De voortgang zie je in de popup; via **Log** zie je wat er per item gebeurt.
@@ -42,6 +43,7 @@ niets. Zo zie je of alles klopt voordat je het echt doet.
 | **Pauze tussen items** | Standaard 45 s plus 0–20 s willekeurig. Rustig aan werkt betrouwbaarder. |
 | **Maximaal aantal per sessie** | Harde bovengrens per run, standaard 10. |
 | **Prijs** | Ongewijzigd overnemen, of met een percentage/bedrag aanpassen (met minimumprijs als ondergrens). |
+| **Gebruikers-id** | Normaal automatisch herkend van je profielpagina. Alleen invullen als het verkeerde account gekozen wordt. |
 | **Alleen items ouder dan** | Sla advertenties over die je net hebt geplaatst. |
 | **Automatisch relisten** | Relist periodiek zelf je oudste advertenties. |
 | **Back-ups** | Slaat de itemgegevens lokaal op vlak vóór het verwijderen. |

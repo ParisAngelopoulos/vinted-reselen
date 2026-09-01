@@ -73,7 +73,7 @@ check('de extensie laadt en de service worker start', async ({ extensionId }) =>
 
 check('het content script leest de eigen advertenties uit', async ({ context, extensionId }) => {
   const vinted = await context.newPage();
-  await vinted.goto('http://www.vinted.nl/');
+  await vinted.goto('http://www.vinted.nl/member/1');
 
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/src/popup/popup.html`);
@@ -106,14 +106,20 @@ check('API-verzoeken dragen de headers die de Vinted-site zelf ook stuurt', asyn
   mock,
 }) => {
   const vinted = await context.newPage();
-  await vinted.goto('http://www.vinted.nl/');
+  await vinted.goto('http://www.vinted.nl/member/1');
 
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/src/popup/popup.html`);
   await popup.waitForSelector('.item');
 
-  const apiCall = mock.calls.find((c) => c.path === '/api/v2/users/current');
-  assert.ok(apiCall, 'de gebruiker hoort opgevraagd te zijn');
+  // The wardrobe call is the one that matters now; the user endpoints are
+  // retired and no longer on the normal path.
+  const apiCall = mock.calls.find((c) => c.path === '/api/v2/wardrobe/1/items');
+  assert.ok(apiCall, 'de advertenties horen opgevraagd te zijn');
+  assert.ok(
+    !mock.calls.some((c) => c.path === '/api/v2/users/current'),
+    'een endpoint waarvan bekend is dat het geblokkeerd wordt, hoort niet aangeroepen te worden',
+  );
   assert.equal(
     apiCall.headers['x-anon-id'],
     'test-anon-id',
@@ -139,7 +145,7 @@ check('de verbindingstest rapporteert per aanroep wat Vinted antwoordt', async (
   extensionId,
 }) => {
   const vinted = await context.newPage();
-  await vinted.goto('http://www.vinted.nl/');
+  await vinted.goto('http://www.vinted.nl/member/1');
 
   const page = await context.newPage();
   await page.goto(`chrome-extension://${extensionId}/src/options/options.html`);
@@ -151,9 +157,14 @@ check('de verbindingstest rapporteert per aanroep wat Vinted antwoordt', async (
 
   const output = await page.textContent('#diagnose-output');
   assert.match(output, /anon_id-cookie:\s+aanwezig/);
-  assert.match(output, /Ingelogd als gebruiker 1\./);
-  assert.match(output, /advertentie\(s\) gevonden/);
-  assert.match(output, /✓ Ingelogde gebruiker: 200/);
+  // The retired endpoints are expected to fail, and that must read as a
+  // blocked request rather than as a session problem.
+  assert.match(output, /✗ Ingelogde gebruiker: 403/);
+  assert.match(output, /geblokkeerd — Vinted stuurde een webpagina terug/);
+  assert.doesNotMatch(output, /Log opnieuw in/i);
+  // What actually decides whether the extension works: the resolved account id.
+  assert.match(output, /Gebruikers-id: 1\b/);
+  assert.match(output, /buiten gebruik/);
 
   await page.close();
   await vinted.close();
@@ -165,7 +176,7 @@ check('een relist maakt de nieuwe advertentie aan en verwijdert de oude', async 
   mock,
 }) => {
   const vinted = await context.newPage();
-  await vinted.goto('http://www.vinted.nl/');
+  await vinted.goto('http://www.vinted.nl/member/1');
 
   const popup = await context.newPage();
   popup.on('dialog', (dialog) => dialog.accept());
@@ -240,7 +251,7 @@ check('een relist maakt de nieuwe advertentie aan en verwijdert de oude', async 
 
 check('testmodus wijzigt niets', async ({ context, extensionId, mock }) => {
   const vinted = await context.newPage();
-  await vinted.goto('http://www.vinted.nl/');
+  await vinted.goto('http://www.vinted.nl/member/1');
 
   const popup = await context.newPage();
   popup.on('dialog', (dialog) => dialog.accept());
@@ -282,7 +293,7 @@ check('de recorder vangt op wat de site zelf aanroept, ook via XHR', async ({
   extensionId,
 }) => {
   const vinted = await context.newPage();
-  await vinted.goto('http://www.vinted.nl/');
+  await vinted.goto('http://www.vinted.nl/member/1');
   // A refresh re-injects the recorder rather than losing it — the whole point
   // of doing this from the extension instead of a pasted console snippet.
   await vinted.reload();

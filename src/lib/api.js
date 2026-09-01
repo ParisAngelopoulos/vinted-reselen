@@ -219,6 +219,12 @@ export class VintedApi {
 
   // ---------------------------------------------------------------- reads --
 
+  /**
+   * Kept only for the connection test. Vinted retired these routes: the site
+   * does not call them and they answer with a protection page, so the account
+   * id is resolved from the page instead (src/lib/user-id.js). Calling this on
+   * the normal path would spend a blocked request for nothing.
+   */
   async getCurrentUser({ signal } = {}) {
     const data = await this.requestFirst(['/api/v2/users/current', '/api/v2/user'], {
       signal,

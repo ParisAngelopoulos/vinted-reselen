@@ -100,12 +100,24 @@ function formatDiagnosis(report) {
   }
 
   lines.push('');
+  lines.push(
+    report.resolvedUserId
+      ? `Gebruikers-id: ${report.resolvedUserId}  (${report.userIdSource})`
+      : `Gebruikers-id: niet bepaald — ${report.userIdSource}`,
+  );
+  lines.push('');
+
   if (report.userId) {
     lines.push(`Ingelogd als gebruiker ${report.userId}.`);
     lines.push(
       report.itemCount === null
         ? 'Je advertenties konden niet worden opgehaald — zie de regel met ✗ hierboven.'
         : `${report.itemCount} advertentie(s) gevonden. De extensie hoort te werken.`,
+    );
+  } else if (report.resolvedUserId) {
+    lines.push(
+      'De oude gebruikers-endpoints van Vinted zijn buiten gebruik; dat ze falen is ' +
+        'verwacht en geen probleem. Het id hierboven wordt van je profielpagina gelezen.',
     );
   } else if (report.checks.some((check) => check.blocked)) {
     // Every failing call came back as a web page: that is the site's

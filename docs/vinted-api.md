@@ -11,9 +11,24 @@ Alles staat in [`src/lib/api.js`](../src/lib/api.js).
 
 | Doel | Aanroep | Terugval |
 | --- | --- | --- |
-| Wie ben ik | `GET /api/v2/users/current` | `GET /api/v2/user` |
-| Mijn advertenties | `GET /api/v2/wardrobe/{userId}/items?page=&per_page=` | `GET /api/v2/users/{userId}/items?...` |
+| Mijn advertenties | `GET /api/v2/wardrobe/{userId}/items?order=&page=&per_page=` | `GET /api/v2/users/{userId}/items?...` |
 | Itemdetails | `GET /api/v2/item_upload/items/{id}` | `GET /api/v2/items/{id}` |
+
+### Het gebruikers-id komt niet van de API
+
+`GET /api/v2/users/current` en `GET /api/v2/user` zijn buiten gebruik: de site roept
+ze niet meer aan en ze antwoorden met een beveiligingspagina in plaats van JSON. Ze
+staan nog wel in de verbindingstest, puur als informatie.
+
+Het id wordt in plaats daarvan bepaald uit de pagina zelf, in deze volgorde
+([`src/lib/user-id.js`](../src/lib/user-id.js)):
+
+1. handmatig ingevuld bij de instellingen;
+2. de URL van de profielpagina die open staat (`/member/3152705349`);
+3. een eerder herkend profiel;
+4. een waargenomen `GET /api/v2/wardrobe/{id}/items` van de site zelf.
+
+Dat is robuuster dan een endpoint: het id staat gewoon in de URL van je profiel.
 
 De upload-variant heeft de voorkeur: die geeft precies de velden terug die het
 aanmaak-endpoint verwacht. De publieke variant heeft een andere vorm (`brand_dto` in

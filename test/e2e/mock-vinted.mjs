@@ -32,7 +32,7 @@ export function createMockVinted({ items } = {}) {
     };
 
     // The page the content script is injected into.
-    if (path === '/' || path === '/member/items') {
+    if (path === '/' || path === '/member/1' || path === '/member/items') {
       res.writeHead(200, {
         'content-type': 'text/html; charset=utf-8',
         // The real site sets this; the extension must echo it back as X-Anon-Id.
@@ -60,8 +60,12 @@ export function createMockVinted({ items } = {}) {
       return json({ ok: true });
     }
 
-    if (path === '/api/v2/users/current') {
-      return json({ user: { id: 1, login: 'tester' } });
+    // Retired on the real site: no longer called by the front-end, and it
+    // answers with a protection page rather than JSON.
+    if (path === '/api/v2/users/current' || path === '/api/v2/user') {
+      res.writeHead(403, { 'content-type': 'text/html' });
+      res.end('<!doctype html><html><head><title>Vinted</title><style>*{box-sizing:border-box}</style></head><body>Access denied</body></html>');
+      return;
     }
 
     if (path === '/api/v2/wardrobe/1/items') {

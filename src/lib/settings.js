@@ -37,6 +37,12 @@ export const DEFAULT_SETTINGS = {
   /** Never let an automatic price change drop below this. */
   minPrice: 1,
 
+  /**
+   * Vinted account id. Normally detected from your own profile page; set it
+   * by hand only if that detection picks the wrong account.
+   */
+  userId: '',
+
   /** Simulate everything (fetch + build payload) without creating or deleting. */
   dryRun: false,
 
