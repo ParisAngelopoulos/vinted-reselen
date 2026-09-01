@@ -249,6 +249,89 @@ check('een relist maakt de nieuwe advertentie aan en verwijdert de oude', async 
   await vinted.close();
 });
 
+check('de uitslag blijft zichtbaar nadat de sessie klaar is', async ({
+  context,
+  extensionId,
+  mock,
+}) => {
+  const vinted = await context.newPage();
+  await vinted.goto('http://www.vinted.nl/member/1');
+
+  const popup = await context.newPage();
+  popup.on('dialog', (dialog) => dialog.accept());
+  await popup.goto(`chrome-extension://${extensionId}/src/popup/popup.html`);
+  await popup.waitForSelector('.item');
+
+  await popup.evaluate(() =>
+    chrome.storage.local.set({
+      settings: {
+        order: 'create-first',
+        delayBetweenItemsSec: 0,
+        jitterSec: 0,
+        delayBetweenCallsMs: 0,
+        maxItemsPerRun: 10,
+        priceMode: 'keep',
+        minPrice: 1,
+        dryRun: false,
+        skipReserved: true,
+      },
+      runState: null,
+    }),
+  );
+  await popup.reload();
+  await popup.waitForSelector('.item');
+
+  // Make the create call fail, so the run finishes with a failed item rather
+  // than a whole-run error — the case that used to leave the popup silent.
+  mock.failCreate = true;
+  await popup.check('.item:nth-child(1) input[type=checkbox]');
+  await popup.click('#start');
+
+  await popup.waitForFunction(
+    () => {
+      const panel = document.getElementById('run-panel');
+      return !panel.hidden && document.getElementById('cancel').textContent === 'Sluiten';
+    },
+    { timeout: 30_000 },
+  );
+
+  const summary = await popup.textContent('#current-message');
+  assert.match(summary, /1 mislukt/, 'de uitslag hoort na afloop zichtbaar te blijven');
+
+  const failures = await popup.textContent('#run-failures');
+  assert.match(failures, /mislukt:/, 'per item hoort de reden zichtbaar te zijn');
+
+  // Dismissing is what clears it.
+  await popup.click('#cancel');
+  await popup.waitForFunction(() => document.getElementById('run-panel').hidden);
+
+  mock.failCreate = false;
+  await popup.close();
+  await vinted.close();
+});
+
+check('testmodus staat op de knop, niet alleen in een melding', async ({ context, extensionId }) => {
+  const vinted = await context.newPage();
+  await vinted.goto('http://www.vinted.nl/member/1');
+
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/src/popup/popup.html`);
+  await popup.waitForSelector('.item');
+
+  await popup.evaluate(() => chrome.storage.local.set({ settings: { dryRun: true } }));
+  await popup.waitForFunction(() =>
+    document.getElementById('start').textContent.includes('TESTMODUS'),
+  );
+
+  await popup.evaluate(() => chrome.storage.local.set({ settings: { dryRun: false } }));
+  await popup.waitForFunction(
+    () => !document.getElementById('start').textContent.includes('TESTMODUS'),
+  );
+
+  await popup.close();
+  await vinted.close();
+});
+
 check('testmodus wijzigt niets', async ({ context, extensionId, mock }) => {
   const vinted = await context.newPage();
   await vinted.goto('http://www.vinted.nl/member/1');

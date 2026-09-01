@@ -67,6 +67,16 @@ als je dat aanzet — gereserveerde items.
 
 Zie [`docs/vinted-api.md`](docs/vinted-api.md) voor de gebruikte endpoints.
 
+## Na een sessie
+
+De uitslag blijft in de popup staan tot je hem sluit: hoeveel er opnieuw geplaatst,
+overgeslagen of mislukt zijn, en per item de reden met de aanroep die faalde.
+
+![De uitslag na een sessie](docs/result.png)
+
+Staat er `Relist selectie — TESTMODUS` op de knop, dan draait de extensie in testmodus en
+wordt er met opzet niets aangemaakt of verwijderd.
+
 ## Als er iets misgaat
 
 Begin bij **tandwiel → Verbinding testen**. Die loopt de leesroutes van Vinted stuk voor

@@ -19,6 +19,8 @@ const ui = {
   start: el('start'),
   cancel: el('cancel'),
   runPanel: el('run-panel'),
+  runFailures: el('run-failures'),
+  progressRow: document.querySelector('.progress-row'),
   progress: el('progress'),
   progressLabel: el('progress-label'),
   currentMessage: el('current-message'),
@@ -118,8 +120,14 @@ function updateSelectionUi() {
   refreshStartButton();
 }
 
-function refreshStartButton(active = ui.runPanel.hidden === false) {
+function refreshStartButton(active = false) {
   ui.start.disabled = state.selected.size === 0 || active;
+  // Dry run is the single easiest way to conclude "it does nothing": the run
+  // completes, nothing changes, and that is correct. Say so on the button
+  // itself rather than in a notice above the list.
+  ui.start.textContent = state.settings?.dryRun
+    ? 'Relist selectie — TESTMODUS'
+    : 'Relist selectie';
 }
 
 async function loadItems({ append = false } = {}) {
@@ -143,9 +151,46 @@ async function loadItems({ append = false } = {}) {
 
 // ------------------------------------------------------------------- run ---
 
+/** One line per item that did not get relisted, with the reason. */
+function renderFailures(results) {
+  const notable = results.filter((result) => result.status === 'failed' || result.status === 'skipped');
+  ui.runFailures.replaceChildren();
+  ui.runFailures.hidden = notable.length === 0;
+  for (const result of notable) {
+    const li = document.createElement('li');
+    const label = result.title || `Item ${result.itemId}`;
+    li.textContent =
+      result.status === 'skipped'
+        ? `${label} — overgeslagen: ${(result.reasons || []).join(', ')}`
+        : `${label} — mislukt: ${result.error}`;
+    ui.runFailures.append(li);
+  }
+}
+
+function summarise(results) {
+  const counts = { relisted: 0, skipped: 0, failed: 0, 'dry-run': 0 };
+  for (const result of results) {
+    if (counts[result.status] !== undefined) counts[result.status] += 1;
+  }
+  const parts = [];
+  if (counts.relisted) parts.push(`${counts.relisted} opnieuw geplaatst`);
+  if (counts['dry-run']) parts.push(`${counts['dry-run']} in testmodus doorlopen (niets gewijzigd)`);
+  if (counts.skipped) parts.push(`${counts.skipped} overgeslagen`);
+  if (counts.failed) parts.push(`${counts.failed} mislukt`);
+  return parts.length ? parts.join(', ') : 'Er is niets verwerkt.';
+}
+
 function renderRunState(runState) {
   const active = Boolean(runState.active);
-  ui.runPanel.hidden = !active;
+  const results = runState.results || [];
+  // A finished run must keep its outcome on screen. Hiding the panel the moment
+  // the run ends leaves the user staring at an unchanged list with no idea
+  // whether anything happened — which reads exactly like "it did nothing".
+  const finished = !active && Boolean(runState.finishedAt) && (results.length > 0 || runState.error);
+
+  ui.runPanel.hidden = !(active || finished);
+  ui.progressRow.classList.toggle('done', finished);
+  ui.cancel.textContent = active ? 'Stoppen' : 'Sluiten';
   ui.refresh.disabled = active;
   refreshStartButton(active);
 
@@ -154,7 +199,10 @@ function renderRunState(runState) {
   ui.progress.max = Math.max(total, 1);
   ui.progress.value = done;
   ui.progressLabel.textContent = `${done} / ${total}`;
-  ui.currentMessage.textContent = runState.currentMessage || '';
+  ui.currentMessage.textContent = finished
+    ? summarise(results)
+    : runState.currentMessage || '';
+  renderFailures(finished ? results : []);
 
   ui.log.replaceChildren();
   for (const entry of runState.log || []) {
@@ -167,6 +215,12 @@ function renderRunState(runState) {
   ui.log.lastElementChild?.scrollIntoView({ block: 'nearest' });
 
   if (!active && runState.error) showNotice(runState.error, 'error');
+}
+
+/** Clearing the stored run state is what dismisses the result panel. */
+async function dismissRun() {
+  await chrome.storage.local.remove('runState');
+  renderRunState({ ...EMPTY_RUN_STATE });
 }
 
 async function refreshRunState() {
@@ -223,6 +277,11 @@ ui.start.addEventListener('click', async () => {
 });
 
 ui.cancel.addEventListener('click', async () => {
+  const state = await send(MSG.GET_STATE).catch(() => null);
+  if (state && !state.active) {
+    await dismissRun();
+    return;
+  }
   ui.cancel.disabled = true;
   try {
     await send(MSG.CANCEL);
@@ -242,8 +301,19 @@ ui.options.addEventListener('click', () => chrome.runtime.openOptionsPage());
 
 // Live updates while the popup is open.
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && changes[RUN_STATE_KEY]) {
+  if (area !== 'local') return;
+  if (changes[RUN_STATE_KEY]) {
     renderRunState({ ...EMPTY_RUN_STATE, ...changes[RUN_STATE_KEY].newValue });
+  }
+  if (changes.settings) {
+    // The options page may have just switched test mode on or off.
+    loadSettings().then((settings) => {
+      state.settings = settings;
+      showNotice(
+        settings.dryRun ? 'Testmodus staat aan — er wordt niets aangemaakt of verwijderd.' : '',
+      );
+      renderItems();
+    });
   }
 });
 

@@ -99,6 +99,7 @@ export function createMockVinted({ items } = {}) {
 
     if (path === '/api/v2/item_upload/items' && req.method === 'POST') {
       const body = JSON.parse(await readBody(req));
+      if (api.failCreate) return json({ message: 'Geweigerd door de test' }, 422);
       state.createdSeq += 1;
       state.created.push(body);
       return json({ item: { id: state.createdSeq, title: body.item.title } });
@@ -116,13 +117,16 @@ export function createMockVinted({ items } = {}) {
     json({ message: `geen route voor ${req.method} ${path}` }, 404);
   });
 
-  return {
+  const api = {
     server,
     state,
     calls,
+    /** Flipped by a test to make item creation fail. */
+    failCreate: false,
     listen: (port) => new Promise((resolve) => server.listen(port, '127.0.0.1', resolve)),
     close: () => new Promise((resolve) => server.close(resolve)),
   };
+  return api;
 }
 
 function defaultItems() {
