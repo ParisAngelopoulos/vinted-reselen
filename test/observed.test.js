@@ -12,5 +12,5 @@ test('formatObserved sorts and lines up the status codes', () => {
 });
 
 test('formatObserved explains what to do when nothing was recorded yet', () => {
-  assert.match(formatObserved([]), /kledingkast/);
+  assert.match(formatObserved([]), /profiel/);
 });

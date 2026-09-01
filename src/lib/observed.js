@@ -53,7 +53,7 @@ export async function clearObserved() {
 /** Plain-text listing, ready to paste into a bug report. */
 export function formatObserved(observed) {
   if (!observed.length) {
-    return 'Nog niets waargenomen. Open Vinted, ga naar je kledingkast en ververs de pagina.';
+    return 'Nog niets waargenomen. Open je eigen Vinted-profiel (de pagina met je advertenties) en ververs die met F5.';
   }
   return [...observed]
     .sort((a, b) => a.entry.localeCompare(b.entry))

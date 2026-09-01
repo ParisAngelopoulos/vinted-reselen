@@ -93,7 +93,7 @@ neemt op welke API-paden de Vinted-site zélf aanroept
 (`src/content/api-recorder.js`, draait in de pagina-context omdat een content script
 zijn eigen `window.fetch` heeft en dus niets van het paginaverkeer ziet).
 
-Open Vinted, ga naar je kledingkast, ververs de pagina, en kijk daarna bij
+Open je eigen Vinted-profiel (de pagina met je advertenties), ververs die, en kijk bij
 **instellingen → Waargenomen endpoints**. Verversen activeert de recorder juist, want
 Chrome injecteert hem bij elke paginalading opnieuw.
 

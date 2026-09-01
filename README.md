@@ -90,7 +90,8 @@ van de items die al verwijderd waren.
 
 Vinted heeft geen openbare API, dus de paden die deze extensie gebruikt kunnen verouderen.
 De extensie neemt daarom op welke API-paden de site zélf aanroept. Open Vinted, ga naar je
-kledingkast, ververs de pagina en kijk bij **instellingen → Waargenomen endpoints**.
+eigen profiel — de pagina waar je advertenties staan — ververs die met F5, en kijk bij
+**instellingen → Waargenomen endpoints**.
 Verversen is precies wat de recorder activeert.
 
 Alleen de methode, het pad, de namen van de queryparameters en de statuscode worden
