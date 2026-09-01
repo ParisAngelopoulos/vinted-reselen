@@ -107,6 +107,16 @@ function formatDiagnosis(report) {
         ? 'Je advertenties konden niet worden opgehaald — zie de regel met ✗ hierboven.'
         : `${report.itemCount} advertentie(s) gevonden. De extensie hoort te werken.`,
     );
+  } else if (report.checks.some((check) => check.blocked)) {
+    // Every failing call came back as a web page: that is the site's
+    // protection layer, and telling the user to log in again is wrong.
+    lines.push(
+      'Vinted stuurde een webpagina terug in plaats van API-gegevens. Dat is de ' +
+        'beveiliging van de site die het verzoek blokkeert — niet een verlopen sessie, ' +
+        'dus opnieuw inloggen helpt hier niet.',
+    );
+    lines.push('');
+    lines.push('Kijk bij "Waargenomen endpoints" welke paden de site zelf wél gebruikt.');
   } else {
     lines.push('Vinted geeft geen ingelogde gebruiker terug. Log opnieuw in op deze site en test nogmaals.');
   }

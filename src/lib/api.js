@@ -32,6 +32,23 @@ export class VintedApiError extends Error {
   get isRateLimit() {
     return this.status === 429;
   }
+
+  /**
+   * An API that answers with an HTML page instead of JSON is not answering as
+   * an API at all: that is a protection or challenge page. Saying "log in
+   * again" there sends the user off to fix something that is not broken.
+   */
+  get isBlockPage() {
+    return Boolean(this.body && typeof this.body === 'object' && this.body.__html);
+  }
+}
+
+/** Recognise a response body that is a web page rather than an API answer. */
+function asHtmlMarker(text) {
+  const head = text.trimStart().slice(0, 200).toLowerCase();
+  if (!head.startsWith('<!doctype html') && !head.startsWith('<html')) return null;
+  const title = /<title[^>]*>([^<]*)<\/title>/i.exec(text)?.[1]?.trim() || null;
+  return { __html: true, title, snippet: text.replace(/\s+/g, ' ').slice(0, 120) };
 }
 
 const JSON_HEADERS = {
@@ -268,10 +285,8 @@ export class VintedApi {
           path,
           status: error?.status ?? 0,
           ok: false,
-          detail:
-            typeof error?.body === 'string'
-              ? error.body.slice(0, 200)
-              : error?.body?.message || error?.message || null,
+          detail: describeFailure(error),
+          blocked: Boolean(error?.isBlockPage),
         });
         return null;
       }
@@ -390,6 +405,16 @@ export class VintedApi {
   }
 }
 
+/** One readable line about a failed call — never a dump of raw markup. */
+function describeFailure(error) {
+  if (error?.isBlockPage) {
+    const title = error.body?.title;
+    return `geblokkeerd — Vinted stuurde een webpagina terug${title ? ` ("${title}")` : ''}`;
+  }
+  if (typeof error?.body === 'string') return error.body.slice(0, 200);
+  return error?.body?.message || error?.message || null;
+}
+
 async function safeReadBody(response) {
   try {
     const text = await response.text();
@@ -397,7 +422,7 @@ async function safeReadBody(response) {
     try {
       return JSON.parse(text);
     } catch {
-      return text.slice(0, 500);
+      return asHtmlMarker(text) ?? text.slice(0, 500);
     }
   } catch {
     return null;
@@ -405,6 +430,12 @@ async function safeReadBody(response) {
 }
 
 function errorMessageFor(status, detail) {
+  if (detail && typeof detail === 'object' && detail.__html) {
+    return (
+      'Vinted antwoordde met een webpagina in plaats van API-gegevens — het verzoek is ' +
+      'geblokkeerd door de beveiliging van de site, niet door een verlopen sessie.'
+    );
+  }
   const serverMessage =
     (detail && typeof detail === 'object' && (detail.message || detail.error)) || null;
   if (status === 401 || status === 403) {

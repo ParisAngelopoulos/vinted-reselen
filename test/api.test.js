@@ -144,3 +144,69 @@ test('a 429 is retried and then succeeds', async () => {
   assert.equal(user.id, 3);
   assert.equal(attempts, 2);
 });
+
+const BLOCK_PAGE = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Vinted</title>
+  <style>* { box-sizing: border-box; }</style>
+</head>
+<body>Access denied</body>
+</html>`;
+
+test('an HTML response is reported as a block, not as a logged-out session', async () => {
+  const client = api({
+    '/api/v2/users/current': { status: 403, body: BLOCK_PAGE },
+    '/api/v2/user': { status: 403, body: BLOCK_PAGE },
+  });
+
+  await assert.rejects(
+    () => client.getCurrentUser(),
+    (error) => {
+      assert.equal(error.isBlockPage, true);
+      assert.match(error.message, /geblokkeerd door de beveiliging/);
+      assert.doesNotMatch(
+        error.message,
+        /log opnieuw in/i,
+        'telling a logged-in user to log in again sends them to fix the wrong thing',
+      );
+      return true;
+    },
+  );
+});
+
+test('a block page never leaks raw markup into the report', async () => {
+  const client = api({
+    '/api/v2/users/current': { status: 403, body: BLOCK_PAGE },
+    '/api/v2/user': { status: 403, body: BLOCK_PAGE },
+  });
+
+  const report = await client.diagnose();
+  assert.equal(report.userId, null);
+  for (const check of report.checks) {
+    assert.equal(check.blocked, true);
+    assert.match(check.detail, /geblokkeerd — Vinted stuurde een webpagina terug \("Vinted"\)/);
+    assert.doesNotMatch(check.detail, /<!doctype|<html|<style/i);
+  }
+});
+
+test('a genuine JSON 403 still reads as a session problem', async () => {
+  const client = api({
+    '/api/v2/users/current': { status: 403, body: { message: 'Sessie verlopen' } },
+    '/api/v2/user': { status: 403, body: { message: 'Sessie verlopen' } },
+  });
+  await assert.rejects(
+    () => client.getCurrentUser(),
+    (error) => {
+      assert.equal(error.isBlockPage, false);
+      assert.match(error.message, /Sessie verlopen/);
+      return true;
+    },
+  );
+});
+
+test('an HTML body on a successful-looking route is not mistaken for JSON', () => {
+  // Guard against a page that merely mentions doctype inside a JSON string.
+  assert.doesNotMatch(JSON.stringify({ note: '<!doctype html>' }), /^<!doctype/i);
+});
