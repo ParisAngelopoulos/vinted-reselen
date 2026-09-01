@@ -13,15 +13,23 @@
 (async () => {
   const base = (path) => chrome.runtime.getURL(path);
 
-  const [{ VintedApi }, { relistBatch, summarise }, { MSG }, { loadSettings }, { saveBackup }, { normalizeItem }] =
-    await Promise.all([
-      import(base('src/lib/api.js')),
-      import(base('src/lib/relist.js')),
-      import(base('src/lib/messages.js')),
-      import(base('src/lib/settings.js')),
-      import(base('src/lib/backup.js')),
-      import(base('src/lib/item-mapper.js')),
-    ]);
+  const [
+    { VintedApi },
+    { relistBatch, summarise },
+    { MSG },
+    { loadSettings },
+    { saveBackup },
+    { normalizeItem },
+    { recordObserved },
+  ] = await Promise.all([
+    import(base('src/lib/api.js')),
+    import(base('src/lib/relist.js')),
+    import(base('src/lib/messages.js')),
+    import(base('src/lib/settings.js')),
+    import(base('src/lib/backup.js')),
+    import(base('src/lib/item-mapper.js')),
+    import(base('src/lib/observed.js')),
+  ]);
 
   /** @type {AbortController|null} */
   let activeRun = null;
@@ -119,6 +127,19 @@
   // Tell the worker which Vinted site this user is on, so it can reopen the
   // right domain later even when no Vinted tab is left open.
   send(MSG.HELLO, { origin: location.origin });
+
+  // The recorder runs in the page's own context and cannot reach chrome.*;
+  // relay what it sees into extension storage. Its messages carry only a
+  // method, a path, query parameter names and a status code.
+  const RECORDER_CHANNEL = 'vinted-relister-recorder';
+  window.addEventListener('message', (event) => {
+    if (event.source !== window) return;
+    const message = event.data;
+    if (!message || message.source !== RECORDER_CHANNEL || message.ready) return;
+    recordObserved({ entry: message.entry, status: message.status }).catch(() => {});
+  });
+  // Ask the recorder to replay whatever it saw before this listener existed.
+  window.postMessage({ source: RECORDER_CHANNEL, ready: true }, location.origin);
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     const handlers = {

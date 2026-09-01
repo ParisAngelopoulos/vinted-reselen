@@ -40,7 +40,12 @@ export function createMockVinted({ items } = {}) {
       });
       res.end(
         '<!doctype html><html><head><meta name="csrf-token" content="test-csrf-token"></head>' +
-          '<body><h1>Mock Vinted</h1></body></html>',
+          '<body><h1>Mock Vinted</h1><script>' +
+          // Stand-in for the site's own front-end traffic, which is what the
+          // recorder is supposed to observe.
+          "fetch('/api/v2/feed?page=1&per_page=20');" +
+          "var x=new XMLHttpRequest();x.open('POST','/api/v2/tracking');x.send();" +
+          '</script></body></html>',
       );
       return;
     }
@@ -49,6 +54,10 @@ export function createMockVinted({ items } = {}) {
       res.writeHead(200, { 'content-type': 'image/png' });
       res.end(ONE_PIXEL_PNG);
       return;
+    }
+
+    if (path === '/api/v2/feed' || path === '/api/v2/tracking') {
+      return json({ ok: true });
     }
 
     if (path === '/api/v2/users/current') {

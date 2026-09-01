@@ -4,6 +4,7 @@ export const MSG = {
   HELLO: 'relist:hello',
   LIST_ITEMS: 'relist:list-items',
   DIAGNOSE: 'relist:diagnose',
+  RECORD_ENDPOINT: 'relist:record-endpoint',
   START: 'relist:start',
   CANCEL: 'relist:cancel',
   GET_STATE: 'relist:get-state',

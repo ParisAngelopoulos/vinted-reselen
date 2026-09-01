@@ -277,6 +277,35 @@ check('testmodus wijzigt niets', async ({ context, extensionId, mock }) => {
   await vinted.close();
 });
 
+check('de recorder vangt op wat de site zelf aanroept, ook via XHR', async ({
+  context,
+  extensionId,
+}) => {
+  const vinted = await context.newPage();
+  await vinted.goto('http://www.vinted.nl/');
+  // A refresh re-injects the recorder rather than losing it — the whole point
+  // of doing this from the extension instead of a pasted console snippet.
+  await vinted.reload();
+  await vinted.waitForTimeout(1000);
+
+  const page = await context.newPage();
+  await page.goto(`chrome-extension://${extensionId}/src/options/options.html`);
+  await page.click('#refresh-observed');
+  await page.waitForFunction(
+    () => document.getElementById('observed-output').textContent.includes('/api/'),
+    { timeout: 10_000 },
+  );
+
+  const output = await page.textContent('#observed-output');
+  assert.match(output, /GET \/api\/v2\/feed\?page&per_page/, 'fetch-verkeer hoort opgenomen te worden');
+  assert.match(output, /POST \/api\/v2\/tracking/, 'XHR-verkeer hoort ook opgenomen te worden');
+  assert.doesNotMatch(output, /test-csrf-token|anon_id=/, 'er mag geen token of cookie in belanden');
+  assert.doesNotMatch(output, /per_page=20/, 'alleen parameternamen, geen waarden');
+
+  await page.close();
+  await vinted.close();
+});
+
 check('de instellingenpagina laadt en slaat op', async ({ context, extensionId }) => {
   const page = await context.newPage();
   const errors = [];

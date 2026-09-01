@@ -1,6 +1,7 @@
 import { DEFAULT_SETTINGS, loadSettings, resetSettings, saveSettings } from '../lib/settings.js';
 import { clearBackups, listBackups } from '../lib/backup.js';
 import { MSG } from '../lib/messages.js';
+import { clearObserved, formatObserved, listObserved } from '../lib/observed.js';
 
 const form = document.getElementById('form');
 const status = document.getElementById('status');
@@ -129,7 +130,27 @@ document.getElementById('run-diagnose').addEventListener('click', async () => {
   }
 });
 
+async function refreshObserved() {
+  const observed = await listObserved();
+  document.getElementById('observed-output').textContent = formatObserved(observed);
+}
+
+document.getElementById('refresh-observed').addEventListener('click', refreshObserved);
+
+document.getElementById('copy-observed').addEventListener('click', async () => {
+  const observed = await listObserved();
+  await navigator.clipboard.writeText(formatObserved(observed));
+  flash('Gekopieerd.');
+});
+
+document.getElementById('clear-observed').addEventListener('click', async () => {
+  await clearObserved();
+  await refreshObserved();
+  flash('Gewist.');
+});
+
 (async function init() {
   applySettings(await loadSettings());
   await refreshBackupCount();
+  await refreshObserved();
 })();

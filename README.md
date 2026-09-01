@@ -76,7 +76,8 @@ en de `anon_id` aanwezig zijn. Zo hoef je niet te gokken welke stap faalt.
 | Wat je ziet | Wat het betekent |
 | --- | --- |
 | `Cookies: GEEN` | Je bent op díe Vinted-site niet ingelogd. Let op het domein bovenaan het rapport — ingelogd zijn op vinted.be helpt niet als de extensie vinted.nl opent. |
-| Een regel met `✗ … 401` of `403` | Vinted weigert die specifieke aanroep. Ververs de Vinted-pagina en probeer opnieuw; blijft het, dan is het endpoint waarschijnlijk gewijzigd — zie [`docs/vinted-api.md`](docs/vinted-api.md). |
+| Alle regels `✗ … 401` of `403` | De endpoints zijn waarschijnlijk gewijzigd. Kijk bij **Waargenomen endpoints** welke paden de site zelf gebruikt. |
+| Een enkele regel met `✗ … 401` of `403` | Vinted weigert die specifieke aanroep. Ververs de Vinted-pagina en probeer opnieuw; blijft het, dan is het endpoint waarschijnlijk gewijzigd — zie [`docs/vinted-api.md`](docs/vinted-api.md). |
 | "Vinted weigerde de gegevens (422)" | Er ontbreekt een veld voor de nieuwe advertentie. De log noemt meestal de reden. |
 | "Te veel verzoeken (429)" | Te snel achter elkaar. Stop, wacht een uur en zet de pauzes hoger. |
 | "Nieuwe advertentie X staat online, maar het verwijderen van Y mislukte" | Je hebt hetzelfde item nu twee keer online. Verwijder de oude handmatig op Vinted. |
@@ -84,6 +85,16 @@ en de `anon_id` aanwezig zijn. Zo hoef je niet te gokken welke stap faalt.
 
 Ging er iets halverwege mis? **Exporteren als JSON** bij de back-ups geeft je de gegevens
 van de items die al verwijderd waren.
+
+### Waargenomen endpoints
+
+Vinted heeft geen openbare API, dus de paden die deze extensie gebruikt kunnen verouderen.
+De extensie neemt daarom op welke API-paden de site zélf aanroept. Open Vinted, ga naar je
+kledingkast, ververs de pagina en kijk bij **instellingen → Waargenomen endpoints**.
+Verversen is precies wat de recorder activeert.
+
+Alleen de methode, het pad, de namen van de queryparameters en de statuscode worden
+bewaard — geen inhoud, headers of cookies.
 
 ## Belangrijk om te weten
 

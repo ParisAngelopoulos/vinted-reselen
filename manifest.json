@@ -71,6 +71,39 @@
       ],
       "run_at": "document_idle",
       "all_frames": false
+    },
+    {
+      "matches": [
+        "*://*.vinted.nl/*",
+        "*://*.vinted.be/*",
+        "*://*.vinted.de/*",
+        "*://*.vinted.at/*",
+        "*://*.vinted.fr/*",
+        "*://*.vinted.lu/*",
+        "*://*.vinted.es/*",
+        "*://*.vinted.it/*",
+        "*://*.vinted.pt/*",
+        "*://*.vinted.pl/*",
+        "*://*.vinted.cz/*",
+        "*://*.vinted.sk/*",
+        "*://*.vinted.lt/*",
+        "*://*.vinted.com/*",
+        "*://*.vinted.co.uk/*",
+        "*://*.vinted.se/*",
+        "*://*.vinted.dk/*",
+        "*://*.vinted.fi/*",
+        "*://*.vinted.gr/*",
+        "*://*.vinted.ro/*",
+        "*://*.vinted.hu/*",
+        "*://*.vinted.hr/*",
+        "*://*.vinted.ie/*"
+      ],
+      "js": [
+        "src/content/api-recorder.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": false
     }
   ],
   "action": {

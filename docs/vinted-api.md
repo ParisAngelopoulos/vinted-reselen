@@ -86,6 +86,21 @@ jitter. Bij `401`/`403` stopt het meteen met de melding dat de sessie verlopen i
 `422` weigert Vinted de gegevens en staat de reden meestal in het antwoord — die komt in
 de log terecht.
 
+## De endpoints opnieuw achterhalen
+
+Zijn de paden hierboven verouderd, dan hoeft er niets geraden te worden. De extensie
+neemt op welke API-paden de Vinted-site zélf aanroept
+(`src/content/api-recorder.js`, draait in de pagina-context omdat een content script
+zijn eigen `window.fetch` heeft en dus niets van het paginaverkeer ziet).
+
+Open Vinted, ga naar je kledingkast, ververs de pagina, en kijk daarna bij
+**instellingen → Waargenomen endpoints**. Verversen activeert de recorder juist, want
+Chrome injecteert hem bij elke paginalading opnieuw.
+
+Vastgelegd worden alleen de methode, het pad, de *namen* van de queryparameters en de
+statuscode — genoeg om een endpoint te herkennen, en niets wat een token of persoonlijke
+gegevens kan bevatten.
+
 ## Als er iets breekt
 
 1. Draai **Verbinding testen** op de instellingenpagina (`VintedApi.diagnose()`). Die
