@@ -1,0 +1,91 @@
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #14181f;
+  --muted: #5f6b7a;
+  --line: #e3e8ef;
+  --accent: #09b1ba;
+  --panel: #f7f9fb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16191d;
+    --fg: #e9edf2;
+    --muted: #97a2b0;
+    --line: #2b3138;
+    --panel: #1d2126;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 32px 16px 64px;
+  font: 14px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+main { max-width: 680px; margin: 0 auto; }
+
+h1 { font-size: 20px; margin: 0 0 4px; }
+h2 { font-size: 15px; margin: 0 0 6px; }
+.lead { color: var(--muted); margin: 0 0 24px; }
+.hint, .muted { color: var(--muted); font-size: 13px; }
+
+fieldset {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px 16px 18px;
+  margin: 0 0 18px;
+}
+legend { padding: 0 6px; font-weight: 600; }
+
+.field { display: block; margin: 14px 0 0; }
+/* `.field { display: block }` would otherwise beat the browser's own
+   `[hidden] { display: none }`, leaving hidden fields on screen. */
+[hidden] { display: none !important; }
+.field > span { display: block; margin-bottom: 4px; }
+.field small { display: block; color: var(--muted); margin-top: 4px; }
+
+.field.checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.field.checkbox > span { margin: 0; }
+
+input[type="number"], select {
+  width: 100%;
+  max-width: 340px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+.actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+
+.btn {
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--fg);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font: inherit;
+  cursor: pointer;
+}
+.btn:hover { background: var(--panel); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-primary:hover { filter: brightness(0.94); }
+
+.status { color: var(--accent); font-size: 13px; }
+
+.backups, .about { margin-top: 28px; }
+.backups .btn { margin-right: 8px; }
+.about ul { padding-left: 20px; color: var(--muted); }
+.about li { margin-bottom: 6px; }

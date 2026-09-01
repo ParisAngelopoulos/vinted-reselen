@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vinted Relister — instellingen</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Vinted Relister</h1>
+      <p class="lead">
+        Deze extensie plaatst je eigen advertenties opnieuw: de foto's en gegevens worden
+        gekopieerd naar een nieuwe advertentie, daarna wordt de oude verwijderd.
+      </p>
+
+      <form id="form">
+        <fieldset>
+          <legend>Werkwijze</legend>
+
+          <label class="field">
+            <span>Volgorde</span>
+            <select name="order">
+              <option value="create-first">Eerst nieuwe plaatsen, dan oude verwijderen (veiligst)</option>
+              <option value="delete-first">Eerst oude verwijderen, dan nieuwe plaatsen</option>
+            </select>
+            <small>
+              Bij "eerst plaatsen" blijft je advertentie online als het uploaden mislukt.
+              Bij "eerst verwijderen" staat het item heel even offline; de gegevens worden
+              lokaal bewaard zodat je het opnieuw kunt proberen.
+            </small>
+          </label>
+
+          <label class="field checkbox">
+            <input type="checkbox" name="dryRun" />
+            <span>Testmodus — alles doorlopen, maar niets aanmaken of verwijderen</span>
+          </label>
+
+          <label class="field checkbox">
+            <input type="checkbox" name="skipReserved" />
+            <span>Gereserveerde items overslaan</span>
+          </label>
+
+          <label class="field checkbox">
+            <input type="checkbox" name="keepBackups" />
+            <span>Lokale back-up van de itemgegevens bewaren vóór verwijderen</span>
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Tempo</legend>
+          <p class="hint">
+            Rustig aan doen scheelt fouten en houdt het verkeer vergelijkbaar met normaal
+            gebruik van de site.
+          </p>
+
+          <label class="field">
+            <span>Pauze tussen items (seconden)</span>
+            <input type="number" name="delayBetweenItemsSec" min="0" max="3600" step="1" />
+          </label>
+
+          <label class="field">
+            <span>Willekeurige extra pauze (0 tot … seconden)</span>
+            <input type="number" name="jitterSec" min="0" max="600" step="1" />
+          </label>
+
+          <label class="field">
+            <span>Pauze tussen losse verzoeken (ms)</span>
+            <input type="number" name="delayBetweenCallsMs" min="0" max="10000" step="50" />
+          </label>
+
+          <label class="field">
+            <span>Maximaal aantal items per sessie</span>
+            <input type="number" name="maxItemsPerRun" min="1" max="100" step="1" />
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Prijs</legend>
+
+          <label class="field">
+            <span>Prijs van de nieuwe advertentie</span>
+            <select name="priceMode">
+              <option value="keep">Ongewijzigd overnemen</option>
+              <option value="percent">Aanpassen met een percentage</option>
+              <option value="absolute">Aanpassen met een vast bedrag</option>
+            </select>
+          </label>
+
+          <label class="field" id="price-value-field">
+            <span>Aanpassing (negatief = korting)</span>
+            <input type="number" name="priceValue" step="0.5" />
+          </label>
+
+          <label class="field">
+            <span>Minimumprijs</span>
+            <input type="number" name="minPrice" min="0" step="0.5" />
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Filters</legend>
+          <label class="field">
+            <span>Alleen items ouder dan … dagen (0 = geen filter)</span>
+            <input type="number" name="minAgeDays" min="0" max="365" step="1" />
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Automatisch relisten</legend>
+          <label class="field checkbox">
+            <input type="checkbox" name="scheduleEnabled" />
+            <span>Periodiek automatisch de oudste advertenties relisten</span>
+          </label>
+          <p class="hint">
+            Hiervoor moet er een Vinted-tabblad open kunnen; de extensie opent er zo nodig
+            zelf één op de achtergrond.
+          </p>
+
+          <label class="field">
+            <span>Interval (uren)</span>
+            <input type="number" name="scheduleIntervalHours" min="1" max="168" step="1" />
+          </label>
+
+          <label class="field">
+            <span>Aantal items per geplande sessie</span>
+            <input type="number" name="scheduleItemsPerRun" min="1" max="25" step="1" />
+          </label>
+        </fieldset>
+
+        <div class="actions">
+          <button type="submit" class="btn btn-primary">Opslaan</button>
+          <button type="button" id="reset" class="btn">Standaardwaarden</button>
+          <span id="status" class="status" role="status"></span>
+        </div>
+      </form>
+
+      <section class="backups">
+        <h2>Lokale back-ups</h2>
+        <p class="hint">
+          Opgeslagen vlak voor het verwijderen, alleen in deze browser. Handig als een
+          relist halverwege misgaat.
+        </p>
+        <label class="field">
+          <span>Back-ups bewaren (dagen)</span>
+          <input type="number" name="backupRetentionDays" min="1" max="365" step="1" form="form" />
+        </label>
+        <p id="backup-count" class="muted">—</p>
+        <button type="button" id="export-backups" class="btn">Exporteren als JSON</button>
+        <button type="button" id="clear-backups" class="btn">Wissen</button>
+      </section>
+
+      <section class="about">
+        <h2>Goed om te weten</h2>
+        <ul>
+          <li>Relisten verwijdert de oude advertentie — daarmee verdwijnen ook de likes, views en eventuele vragen eronder.</li>
+          <li>De extensie gebruikt je bestaande Vinted-sessie in de browser. Er worden geen inloggegevens gelezen, opgeslagen of verstuurd.</li>
+          <li>Vinted biedt hier zelf geen officiële API voor; bij een wijziging aan de site kan een stap tijdelijk stukgaan. Test dan eerst met testmodus aan.</li>
+          <li>Ga rustig te werk. Grote aantallen in hoog tempo kunnen door Vinted als misbruik gezien worden.</li>
+        </ul>
+      </section>
+    </main>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

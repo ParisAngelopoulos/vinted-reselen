@@ -1,0 +1,19 @@
+{
+  "name": "vinted-relister",
+  "version": "1.0.0",
+  "description": "Browser-extensie om je eigen Vinted-advertenties opnieuw te plaatsen.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "test:e2e": "node test/e2e/extension.e2e.mjs",
+    "validate": "node scripts/validate.mjs",
+    "icons": "node scripts/make-icons.mjs",
+    "check": "npm run validate && npm test && npm run test:e2e",
+    "package": "node scripts/package.mjs"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "playwright": "^1.56.0"
+  }
+}

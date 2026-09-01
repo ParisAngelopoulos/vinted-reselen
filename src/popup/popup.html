@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <title>Vinted Relister</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="bar">
+      <h1>Vinted Relister</h1>
+      <button id="open-options" class="icon-btn" title="Instellingen" aria-label="Instellingen">⚙</button>
+    </header>
+
+    <div id="notice" class="notice" hidden></div>
+
+    <section id="run-panel" class="panel" hidden>
+      <div class="progress-row">
+        <progress id="progress" max="100" value="0"></progress>
+        <span id="progress-label" class="muted">0 / 0</span>
+      </div>
+      <p id="current-message" class="current"></p>
+      <button id="cancel" class="btn btn-danger">Stoppen</button>
+    </section>
+
+    <section class="toolbar">
+      <label class="check">
+        <input type="checkbox" id="select-all" />
+        <span>Alles</span>
+      </label>
+      <span id="selection-count" class="muted">0 geselecteerd</span>
+      <button id="refresh" class="btn btn-ghost" title="Lijst verversen">Verversen</button>
+    </section>
+
+    <main>
+      <ul id="items" class="items" aria-live="polite"></ul>
+      <p id="empty" class="muted center" hidden>Geen advertenties gevonden.</p>
+      <div id="loading" class="center muted">Laden…</div>
+      <button id="load-more" class="btn btn-ghost full" hidden>Meer laden</button>
+    </main>
+
+    <footer class="bar footer">
+      <button id="start" class="btn btn-primary" disabled>Relist selectie</button>
+      <button id="toggle-log" class="btn btn-ghost">Log</button>
+    </footer>
+
+    <section id="log-panel" class="panel log" hidden>
+      <ul id="log"></ul>
+    </section>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
