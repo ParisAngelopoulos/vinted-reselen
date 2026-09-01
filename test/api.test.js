@@ -251,3 +251,17 @@ test('when every variant fails the error names all of them', async () => {
     },
   );
 });
+
+test('readCsrfCookie finds a token kept in a cookie', () => {
+  assert.equal(VintedApi.readCsrfCookie('a=1; csrf_token=abc123; b=2'), 'abc123');
+  assert.equal(VintedApi.readCsrfCookie('XSRF-CSRF=zzz'), 'zzz');
+  assert.equal(VintedApi.readCsrfCookie('anon_id=nope; session=x'), null);
+  assert.equal(VintedApi.readCsrfCookie(''), null);
+  assert.equal(VintedApi.readCsrfCookie(undefined), null);
+});
+
+test('cookieNames reports names only, never values', () => {
+  const names = VintedApi.cookieNames('anon_id=secret-value; _vinted_session=another-secret');
+  assert.deepEqual(names, ['_vinted_session', 'anon_id']);
+  assert.ok(!names.join(' ').includes('secret'), 'a value must never reach the report');
+});

@@ -66,31 +66,36 @@ export async function relistItem(api, itemId, options = {}) {
   const tempUuid = uuid();
 
   // --- photos -------------------------------------------------------------
-  let uploaded;
-  if (settings.dryRun) {
-    uploaded = item.photos.map((photo, index) => ({ id: -(index + 1), orientation: photo.orientation }));
-    report(STEP.PHOTOS, `Testmodus: ${item.photos.length} foto’s zouden worden geüpload.`);
-  } else {
-    uploaded = [];
-    for (const [index, photo] of item.photos.entries()) {
-      signal?.throwIfAborted();
-      report(STEP.PHOTOS, `Foto ${index + 1}/${item.photos.length} overzetten…`, {
-        progress: index / item.photos.length,
-      });
-      const blob = await api.downloadPhoto(photo.url, { signal });
-      const result = await api.uploadPhoto(blob, {
-        tempUuid,
-        filename: filenameFor(index, photo.url),
-        signal,
-      });
-      uploaded.push({ id: result.id, orientation: photo.orientation ?? 0 });
-    }
+  //
+  // The photos are transferred in a dry run too. They go to a temporary upload
+  // session, which creates no listing and deletes nothing, so it is safe — and
+  // it is by far the most failure-prone step. A test mode that fakes this step
+  // reports success and then the real run fails on the very thing it skipped,
+  // which is worse than having no test mode at all.
+  const uploaded = [];
+  for (const [index, photo] of item.photos.entries()) {
+    signal?.throwIfAborted();
+    report(STEP.PHOTOS, `Foto ${index + 1}/${item.photos.length} overzetten…`, {
+      progress: index / item.photos.length,
+    });
+    const blob = await api.downloadPhoto(photo.url, { signal });
+    const result = await api.uploadPhoto(blob, {
+      tempUuid,
+      filename: filenameFor(index, photo.url),
+      signal,
+    });
+    uploaded.push({ id: result.id, orientation: photo.orientation ?? 0 });
   }
 
   const payload = buildCreatePayload(item, { photoIds: uploaded, uploadSessionId, tempUuid, price });
 
   if (settings.dryRun) {
-    report(STEP.DONE, `Testmodus: ${label} zou opnieuw geplaatst worden voor ${price} ${item.currency}.`);
+    report(
+      STEP.DONE,
+      `Testmodus geslaagd: ${label} — ${item.photos.length} foto’s overgezet, ` +
+        `zou opnieuw geplaatst worden voor ${price} ${item.currency}. ` +
+        'Er is niets aangemaakt en niets verwijderd.',
+    );
     return { status: 'dry-run', itemId, title: item.title, payload };
   }
 

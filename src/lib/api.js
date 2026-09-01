@@ -80,7 +80,14 @@ export class VintedApi {
     this.maxRetries = 3;
   }
 
-  /** Read the CSRF token the way the Vinted front-end does. */
+  /**
+   * Find the CSRF token. Writes are refused without it while reads work fine,
+   * so a missing token looks like "Access denied" on upload only.
+   *
+   * Checked in order: the classic Rails meta tag, the Next.js bootstrap, and
+   * finally a cookie whose name mentions csrf — which is where a front-end that
+   * renders no meta tag usually keeps it.
+   */
   static readCsrfToken(doc = globalThis.document) {
     const meta = doc?.querySelector('meta[name="csrf-token"]');
     if (meta?.content) return meta.content;
@@ -95,7 +102,27 @@ export class VintedApi {
         /* not fatal — the header is optional for GETs */
       }
     }
-    return null;
+    return VintedApi.readCsrfCookie(doc?.cookie);
+  }
+
+  /** A cookie whose name mentions csrf, if the page carries one. */
+  static readCsrfCookie(cookieString) {
+    const match = /(?:^|;\s*)([^=;\s]*csrf[^=;\s]*)=([^;]*)/i.exec(cookieString || '');
+    if (!match) return null;
+    try {
+      return decodeURIComponent(match[2]) || null;
+    } catch {
+      return match[2] || null;
+    }
+  }
+
+  /** Cookie names present, never values — for the connection report. */
+  static cookieNames(cookieString = globalThis.document?.cookie) {
+    return (cookieString || '')
+      .split(';')
+      .map((part) => part.split('=')[0].trim())
+      .filter(Boolean)
+      .sort();
   }
 
   /**
@@ -287,6 +314,7 @@ export class VintedApi {
       hasCsrfToken: Boolean(this.csrfToken),
       hasAnonId: Boolean(this.anonId),
       hasCookies: Boolean(globalThis.document?.cookie),
+      cookieNames: VintedApi.cookieNames(),
       userId: null,
       itemCount: null,
       checks: [],

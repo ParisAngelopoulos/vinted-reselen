@@ -107,13 +107,39 @@ test('a failed delete after a successful create is reported, not retried blindly
   );
 });
 
-test('dry run touches nothing', async () => {
+test('dry run creates and deletes nothing', async () => {
   const api = fakeApi();
   const result = await relistItem(api, 42, { settings: { ...fastSettings, dryRun: true } });
 
   assert.equal(result.status, 'dry-run');
-  assert.deepEqual(api.calls.map((c) => c[0]), ['getItem']);
   assert.equal(result.payload.item.title, 'Item 42');
+
+  const names = api.calls.map((c) => c[0]);
+  assert.ok(!names.includes('createItem'), 'a dry run must never create a listing');
+  assert.ok(!names.includes('deleteItem'), 'a dry run must never delete anything');
+});
+
+test('dry run really transfers the photos, so the risky step is actually tested', async () => {
+  // Faking this step made the dry run report success and the real run fail on
+  // exactly what was skipped — worse than having no dry run at all.
+  const api = fakeApi();
+  await relistItem(api, 42, { settings: { ...fastSettings, dryRun: true } });
+
+  const names = api.calls.map((c) => c[0]);
+  assert.equal(names.filter((n) => n === 'downloadPhoto').length, 2);
+  assert.equal(names.filter((n) => n === 'uploadPhoto').length, 2);
+});
+
+test('a dry run fails when the photo upload is refused', async () => {
+  const api = fakeApi({
+    async uploadPhoto() {
+      throw new Error('Accès refusé (POST /api/v2/photos)');
+    },
+  });
+  await assert.rejects(
+    () => relistItem(api, 42, { settings: { ...fastSettings, dryRun: true } }),
+    /Accès refusé/,
+  );
 });
 
 test('sold items are skipped without any write', async () => {

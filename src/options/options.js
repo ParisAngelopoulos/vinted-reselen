@@ -89,7 +89,8 @@ function formatDiagnosis(report) {
     `Site:            ${report.origin}`,
     `Cookies:         ${report.hasCookies ? 'aanwezig' : 'GEEN — je bent niet ingelogd op deze site'}`,
     `anon_id-cookie:  ${report.hasAnonId ? 'aanwezig' : 'ontbreekt'}`,
-    `CSRF-token:      ${report.hasCsrfToken ? 'gevonden' : 'niet gevonden op de pagina'}`,
+    `CSRF-token:      ${report.hasCsrfToken ? 'gevonden' : 'niet gevonden — schrijfacties worden hierdoor mogelijk geweigerd'}`,
+    `Cookies aanwezig: ${(report.cookieNames || []).join(', ') || '(geen)'}`,
     '',
   ];
 

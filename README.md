@@ -31,15 +31,20 @@ Je mag de popup sluiten — de sessie loopt door in het Vinted-tabblad. Sluit da
 niet tijdens een sessie.
 
 **Begin met testmodus.** Zet bij instellingen *Testmodus* aan: de extensie doorloopt dan
-alles (gegevens ophalen, controleren, payload opbouwen) maar maakt niets aan en verwijdert
-niets. Zo zie je of alles klopt voordat je het echt doet.
+alles — gegevens ophalen, controleren, én de foto's overzetten naar een tijdelijke
+uploadsessie — maar maakt geen advertentie aan en verwijdert niets.
+
+De foto-upload wordt bewust wél echt uitgevoerd. Die stap faalt het vaakst, en een
+testmodus die hem overslaat meldt "geen fouten" om vervolgens bij de echte run precies
+daarop stuk te gaan. De geüploade foto's horen bij een tijdelijke sessie, staan nergens
+online en verlopen vanzelf.
 
 ## Instellingen
 
 | Instelling | Wat het doet |
 | --- | --- |
 | **Volgorde** | `Eerst plaatsen, dan verwijderen` (standaard) houdt je advertentie online als het uploaden misgaat. `Eerst verwijderen` doet het andersom; het item staat dan heel even offline. |
-| **Testmodus** | Alles doorlopen zonder iets te wijzigen. |
+| **Testmodus** | Alles doorlopen inclusief de foto-upload, maar zonder een advertentie aan te maken of te verwijderen. |
 | **Pauze tussen items** | Standaard 45 s plus 0–20 s willekeurig. Rustig aan werkt betrouwbaarder. |
 | **Maximaal aantal per sessie** | Harde bovengrens per run, standaard 10. |
 | **Prijs** | Ongewijzigd overnemen, of met een percentage/bedrag aanpassen (met minimumprijs als ondergrens). |

@@ -352,6 +352,7 @@ check('testmodus wijzigt niets', async ({ context, extensionId, mock }) => {
 
   const createdBefore = mock.state.created.length;
   const deletedBefore = mock.state.deleted.length;
+  const photoUploadsBefore = mock.calls.filter((c) => c.path === '/api/v2/photos').length;
 
   await popup.check('.item:nth-child(1) input[type=checkbox]');
   await popup.click('#start');
@@ -366,6 +367,10 @@ check('testmodus wijzigt niets', async ({ context, extensionId, mock }) => {
 
   assert.equal(mock.state.created.length, createdBefore, 'testmodus mag niets aanmaken');
   assert.equal(mock.state.deleted.length, deletedBefore, 'testmodus mag niets verwijderen');
+  assert.ok(
+    mock.calls.filter((c) => c.path === '/api/v2/photos').length > photoUploadsBefore,
+    'testmodus hoort de foto-upload wél te doen — dat is de stap die het vaakst faalt',
+  );
 
   await popup.close();
   await vinted.close();
