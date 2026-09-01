@@ -14,6 +14,7 @@ import {
   normalizeItem,
 } from './item-mapper.js';
 import { jitteredDelayMs, sleep } from './timing.js';
+import { uuid } from './uuid.js';
 
 export const STEP = {
   FETCH: 'fetch',
@@ -23,16 +24,6 @@ export const STEP = {
   DELETE: 'delete',
   DONE: 'done',
 };
-
-function uuid() {
-  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
-  // Fallback for contexts without randomUUID.
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
 
 function filenameFor(index, url) {
   const ext = /\.(jpe?g|png|webp)(\?|$)/i.exec(url || '')?.[1] || 'jpg';
