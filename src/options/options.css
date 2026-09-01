@@ -33,6 +33,7 @@ main { max-width: 680px; margin: 0 auto; }
 h1 { font-size: 20px; margin: 0 0 4px; }
 h2 { font-size: 15px; margin: 0 0 6px; }
 .lead { color: var(--muted); margin: 0 0 24px; }
+.version { font-size: 13px; font-weight: 400; color: var(--muted); }
 .hint, .muted { color: var(--muted); font-size: 13px; }
 
 fieldset {

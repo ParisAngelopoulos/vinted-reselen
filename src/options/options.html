@@ -8,11 +8,40 @@
   </head>
   <body>
     <main>
-      <h1>Vinted Relister</h1>
+      <h1>Vinted Relister <span id="app-version" class="version"></span></h1>
       <p class="lead">
         Deze extensie plaatst je eigen advertenties opnieuw: de foto's en gegevens worden
         gekopieerd naar een nieuwe advertentie, daarna wordt de oude verwijderd.
       </p>
+
+      <section class="diagnose">
+        <h2>Verbinding testen</h2>
+        <p class="hint">
+          Werkt de extensie niet? Deze test loopt de endpoints van Vinted langs en laat
+          zien welke aanroep precies faalt. Zorg dat je op Vinted ingelogd bent.
+        </p>
+        <button type="button" id="run-diagnose" class="btn">Verbinding testen</button>
+        <pre id="diagnose-output" class="diagnose-output" hidden></pre>
+      </section>
+
+      <section class="observed">
+        <h2>Waargenomen endpoints</h2>
+        <p class="hint">
+          Vinted heeft geen openbare API, dus de paden die deze extensie gebruikt kunnen
+          verouderen. Hieronder staat wat de Vinted-site zélf aanroept, opgenomen terwijl
+          je hem gebruikt. Werkt de extensie niet meer, dan zie je hier de actuele paden.
+          Alleen methode, pad, de namen van de queryparameters en de statuscode worden
+          bewaard — geen inhoud, headers of cookies.
+        </p>
+        <p class="hint">
+          Open je eigen Vinted-profiel — de pagina waar je advertenties staan — en ververs
+          die (F5); kom dan hier terug.
+        </p>
+        <button type="button" id="refresh-observed" class="btn">Verversen</button>
+        <button type="button" id="copy-observed" class="btn">Kopiëren</button>
+        <button type="button" id="clear-observed" class="btn">Wissen</button>
+        <pre id="observed-output" class="diagnose-output">—</pre>
+      </section>
 
       <form id="form">
         <fieldset>
@@ -134,35 +163,6 @@
           <span id="status" class="status" role="status"></span>
         </div>
       </form>
-
-      <section class="diagnose">
-        <h2>Verbinding testen</h2>
-        <p class="hint">
-          Werkt de extensie niet? Deze test loopt de endpoints van Vinted langs en laat
-          zien welke aanroep precies faalt. Zorg dat je op Vinted ingelogd bent.
-        </p>
-        <button type="button" id="run-diagnose" class="btn">Verbinding testen</button>
-        <pre id="diagnose-output" class="diagnose-output" hidden></pre>
-      </section>
-
-      <section class="observed">
-        <h2>Waargenomen endpoints</h2>
-        <p class="hint">
-          Vinted heeft geen openbare API, dus de paden die deze extensie gebruikt kunnen
-          verouderen. Hieronder staat wat de Vinted-site zélf aanroept, opgenomen terwijl
-          je hem gebruikt. Werkt de extensie niet meer, dan zie je hier de actuele paden.
-          Alleen methode, pad, de namen van de queryparameters en de statuscode worden
-          bewaard — geen inhoud, headers of cookies.
-        </p>
-        <p class="hint">
-          Open je eigen Vinted-profiel — de pagina waar je advertenties staan — en ververs
-          die (F5); kom dan hier terug.
-        </p>
-        <button type="button" id="refresh-observed" class="btn">Verversen</button>
-        <button type="button" id="copy-observed" class="btn">Kopiëren</button>
-        <button type="button" id="clear-observed" class="btn">Wissen</button>
-        <pre id="observed-output" class="diagnose-output">—</pre>
-      </section>
 
       <section class="backups">
         <h2>Lokale back-ups</h2>

@@ -248,6 +248,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 (async function init() {
+  el('app-version').textContent = `v${chrome.runtime.getManifest().version}`;
   state.settings = await loadSettings();
   if (state.settings.dryRun) {
     showNotice('Testmodus staat aan — er wordt niets aangemaakt of verwijderd.');

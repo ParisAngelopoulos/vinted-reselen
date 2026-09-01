@@ -160,6 +160,8 @@ document.getElementById('clear-observed').addEventListener('click', async () => 
 });
 
 (async function init() {
+  const { version } = chrome.runtime.getManifest();
+  document.getElementById('app-version').textContent = `v${version}`;
   applySettings(await loadSettings());
   await refreshBackupCount();
   await refreshObserved();

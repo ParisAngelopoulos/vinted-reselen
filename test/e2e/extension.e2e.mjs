@@ -314,6 +314,13 @@ check('de instellingenpagina laadt en slaat op', async ({ context, extensionId }
   await page.goto(`chrome-extension://${extensionId}/src/options/options.html`);
   await page.waitForSelector('#form');
 
+  // A stale copy of the extension is the single most confusing failure mode:
+  // the version has to be visible without digging through chrome://extensions.
+  await page.waitForFunction(() => document.getElementById('app-version').textContent.startsWith('v'));
+  const shown = await page.textContent('#app-version');
+  const declared = await page.evaluate(() => chrome.runtime.getManifest().version);
+  assert.equal(shown, `v${declared}`);
+
   // A field that depends on another control must actually disappear.
   assert.equal(
     await page.isVisible('#price-value-field'),
