@@ -89,3 +89,19 @@ input[type="number"], select {
 .backups .btn { margin-right: 8px; }
 .about ul { padding-left: 20px; color: var(--muted); }
 .about li { margin-bottom: 6px; }
+
+.diagnose { margin-top: 28px; }
+
+.diagnose-output {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+}
+.diagnose-output .ok { color: #1a7f4b; }
+.diagnose-output .bad { color: #c0392b; }

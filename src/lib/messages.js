@@ -3,6 +3,7 @@ export const MSG = {
   PING: 'relist:ping',
   HELLO: 'relist:hello',
   LIST_ITEMS: 'relist:list-items',
+  DIAGNOSE: 'relist:diagnose',
   START: 'relist:start',
   CANCEL: 'relist:cancel',
   GET_STATE: 'relist:get-state',

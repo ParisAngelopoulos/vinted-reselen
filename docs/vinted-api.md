@@ -65,6 +65,20 @@ hem opnieuw onder een nieuwe `temp_uuid`.
 `push_up` staat hard op `false`. Dat is een betaalde functie; die mag deze extensie nooit
 ongevraagd aanzetten.
 
+## Headers
+
+De extensie stuurt exact wat de Vinted-webapp zelf ook stuurt, niet meer:
+
+| Header | Herkomst | Waarom |
+| --- | --- | --- |
+| `X-CSRF-Token` | `meta[name=csrf-token]` op de pagina, of de Next.js-bootstrap | Vereist voor schrijfacties |
+| `X-Anon-Id` | de `anon_id`-cookie | Meerdere routes antwoorden `403` zonder deze header, ook met een geldige sessie |
+
+Een extra header die de echte site *niet* stuurt (zoals `X-Requested-With`) laat het
+verzoek juist opvallen bij de bot-bescherming en kan een `403` opleveren terwijl er niets
+mis is met de sessie. Voeg er dus niets aan toe zonder na te kijken of vinted.nl dat zelf
+ook doet, in het netwerktabblad van DevTools.
+
 ## Foutafhandeling
 
 `VintedApi.request()` probeert het opnieuw bij `429` en `5xx`, met exponentiële backoff en
@@ -74,8 +88,11 @@ de log terecht.
 
 ## Als er iets breekt
 
-1. Zet testmodus aan en start één item. De log zegt bij welke stap het misgaat.
-2. Vergelijk de stap met wat de website zelf doet: open het netwerktabblad in
-   DevTools en plaats handmatig een advertentie.
-3. Pas het pad of de payload aan in `src/lib/api.js` of `buildCreatePayload()`, en
+1. Draai **Verbinding testen** op de instellingenpagina (`VintedApi.diagnose()`). Die
+   probeert elke leesroute los en rapporteert de statuscode per aanroep zonder af te
+   breken, plus of de cookies, het CSRF-token en de `anon_id` aanwezig zijn.
+2. Zet testmodus aan en start één item. De log zegt bij welke stap het misgaat.
+3. Vergelijk de stap met wat de website zelf doet: open het netwerktabblad in
+   DevTools en plaats handmatig een advertentie. Let ook op de headers.
+4. Pas het pad of de payload aan in `src/lib/api.js` of `buildCreatePayload()`, en
    draai `npm run check`.

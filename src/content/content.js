@@ -124,6 +124,10 @@
     const handlers = {
       [MSG.PING]: async () => ({ ok: true, origin: location.origin, busy: Boolean(activeRun) }),
       [MSG.LIST_ITEMS]: () => handleListItems(message.payload),
+      [MSG.DIAGNOSE]: async () => {
+        const { api } = await makeApi();
+        return api.diagnose();
+      },
       [MSG.START]: () => handleStart(message.payload),
       [MSG.CANCEL]: async () => handleCancel(),
     };

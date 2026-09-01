@@ -100,6 +100,65 @@ check('zonder open Vinted-tabblad opent de extensie er zelf een', async ({ conte
   await popup.close();
 });
 
+check('API-verzoeken dragen de headers die de Vinted-site zelf ook stuurt', async ({
+  context,
+  extensionId,
+  mock,
+}) => {
+  const vinted = await context.newPage();
+  await vinted.goto('http://www.vinted.nl/');
+
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/src/popup/popup.html`);
+  await popup.waitForSelector('.item');
+
+  const apiCall = mock.calls.find((c) => c.path === '/api/v2/users/current');
+  assert.ok(apiCall, 'de gebruiker hoort opgevraagd te zijn');
+  assert.equal(
+    apiCall.headers['x-anon-id'],
+    'test-anon-id',
+    'de anon_id-cookie hoort als X-Anon-Id teruggestuurd te worden',
+  );
+  assert.equal(
+    apiCall.headers['x-csrf-token'],
+    'test-csrf-token',
+    'het CSRF-token van de pagina hoort meegestuurd te worden',
+  );
+  assert.equal(
+    apiCall.headers['x-requested-with'],
+    undefined,
+    'een header die de echte site niet stuurt hoort er niet in te zitten',
+  );
+
+  await popup.close();
+  await vinted.close();
+});
+
+check('de verbindingstest rapporteert per aanroep wat Vinted antwoordt', async ({
+  context,
+  extensionId,
+}) => {
+  const vinted = await context.newPage();
+  await vinted.goto('http://www.vinted.nl/');
+
+  const page = await context.newPage();
+  await page.goto(`chrome-extension://${extensionId}/src/options/options.html`);
+  await page.click('#run-diagnose');
+  await page.waitForFunction(
+    () => !document.getElementById('diagnose-output').textContent.startsWith('Bezig'),
+    { timeout: 20_000 },
+  );
+
+  const output = await page.textContent('#diagnose-output');
+  assert.match(output, /anon_id-cookie:\s+aanwezig/);
+  assert.match(output, /Ingelogd als gebruiker 1\./);
+  assert.match(output, /advertentie\(s\) gevonden/);
+  assert.match(output, /✓ Ingelogde gebruiker: 200/);
+
+  await page.close();
+  await vinted.close();
+});
+
 check('een relist maakt de nieuwe advertentie aan en verwijdert de oude', async ({
   context,
   extensionId,

@@ -65,6 +65,26 @@ als je dat aanzet — gereserveerde items.
 
 Zie [`docs/vinted-api.md`](docs/vinted-api.md) voor de gebruikte endpoints.
 
+## Als er iets misgaat
+
+Begin bij **tandwiel → Verbinding testen**. Die loopt de leesroutes van Vinted stuk voor
+stuk langs en laat per aanroep zien wat er terugkomt, plus of je cookies, het CSRF-token
+en de `anon_id` aanwezig zijn. Zo hoef je niet te gokken welke stap faalt.
+
+![Het diagnoserapport](docs/diagnose.png)
+
+| Wat je ziet | Wat het betekent |
+| --- | --- |
+| `Cookies: GEEN` | Je bent op díe Vinted-site niet ingelogd. Let op het domein bovenaan het rapport — ingelogd zijn op vinted.be helpt niet als de extensie vinted.nl opent. |
+| Een regel met `✗ … 401` of `403` | Vinted weigert die specifieke aanroep. Ververs de Vinted-pagina en probeer opnieuw; blijft het, dan is het endpoint waarschijnlijk gewijzigd — zie [`docs/vinted-api.md`](docs/vinted-api.md). |
+| "Vinted weigerde de gegevens (422)" | Er ontbreekt een veld voor de nieuwe advertentie. De log noemt meestal de reden. |
+| "Te veel verzoeken (429)" | Te snel achter elkaar. Stop, wacht een uur en zet de pauzes hoger. |
+| "Nieuwe advertentie X staat online, maar het verwijderen van Y mislukte" | Je hebt hetzelfde item nu twee keer online. Verwijder de oude handmatig op Vinted. |
+| "Tabblad gesloten" | De sessie is afgebroken. Kijk op Vinted wat wel en niet gelukt is voordat je opnieuw start. |
+
+Ging er iets halverwege mis? **Exporteren als JSON** bij de back-ups geeft je de gegevens
+van de items die al verwijderd waren.
+
 ## Belangrijk om te weten
 
 - **Relisten wist je statistieken.** De oude advertentie verdwijnt, en daarmee ook de

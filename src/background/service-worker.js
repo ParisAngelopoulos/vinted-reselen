@@ -170,12 +170,18 @@ async function listItems(payload) {
   return sendToTab(tab.id, MSG.LIST_ITEMS, payload);
 }
 
+async function diagnose() {
+  const tab = await ensureVintedTab(true);
+  return sendToTab(tab.id, MSG.DIAGNOSE);
+}
+
 // --------------------------------------------------------------- routing ---
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const handlers = {
     [MSG.GET_STATE]: () => getRunState(),
     [MSG.LIST_ITEMS]: () => listItems(message.payload),
+    [MSG.DIAGNOSE]: () => diagnose(),
     [MSG.START]: () => startRun(message.payload),
     [MSG.CANCEL]: () => cancelRun(),
   };

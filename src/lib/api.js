@@ -14,11 +14,14 @@
 import { Throttle, backoffMs, sleep } from './timing.js';
 
 export class VintedApiError extends Error {
-  constructor(message, { status = 0, path = '', body = null } = {}) {
-    super(message);
+  constructor(message, { status = 0, path = '', method = 'GET', body = null } = {}) {
+    // Name the call in the message itself: this is the only thing the user
+    // sees in the popup, and "which request failed" is the first question.
+    super(path ? `${message} (${method} ${path})` : message);
     this.name = 'VintedApiError';
     this.status = status;
     this.path = path;
+    this.method = method;
     this.body = body;
   }
 
@@ -44,9 +47,16 @@ export class VintedApi {
    * @param {number} [opts.minGapMs]  minimum gap between requests
    * @param {typeof fetch} [opts.fetchImpl]
    */
-  constructor({ origin, csrfToken = null, minGapMs = 900, fetchImpl = globalThis.fetch.bind(globalThis) } = {}) {
+  constructor({
+    origin,
+    csrfToken = null,
+    anonId = null,
+    minGapMs = 900,
+    fetchImpl = globalThis.fetch.bind(globalThis),
+  } = {}) {
     this.origin = (origin || globalThis.location?.origin || '').replace(/\/$/, '');
     this.csrfToken = csrfToken;
+    this.anonId = anonId;
     this.fetchImpl = fetchImpl;
     this.throttle = new Throttle(minGapMs);
     this.maxRetries = 3;
@@ -70,10 +80,26 @@ export class VintedApi {
     return null;
   }
 
+  /**
+   * The `anon_id` cookie. Vinted's own front-end echoes it back as an
+   * `X-Anon-Id` header on every API call, and several routes answer 403 when
+   * it is missing — even with a perfectly valid session cookie.
+   */
+  static readAnonId(cookieString = globalThis.document?.cookie) {
+    const match = /(?:^|;\s*)anon_id=([^;]*)/.exec(cookieString || '');
+    if (!match) return null;
+    try {
+      return decodeURIComponent(match[1]) || null;
+    } catch {
+      return match[1] || null;
+    }
+  }
+
   static fromPage(overrides = {}) {
     return new VintedApi({
       origin: globalThis.location?.origin,
       csrfToken: VintedApi.readCsrfToken(),
+      anonId: VintedApi.readAnonId(),
       ...overrides,
     });
   }
@@ -82,11 +108,16 @@ export class VintedApi {
     this.throttle.setGap(ms);
   }
 
+  /**
+   * Match the header set Vinted's own web app sends — no more and no less.
+   * An extra header the real client never sends (X-Requested-With, say) makes
+   * the request stand out to the bot-protection layer, which is a good way to
+   * earn a 403 while holding a perfectly valid session.
+   */
   headers(extra = {}) {
     const headers = { ...extra };
     if (this.csrfToken) headers['X-CSRF-Token'] = this.csrfToken;
-    // Mirrors the header the web app sends; some routes 403 without it.
-    headers['X-Requested-With'] = 'XMLHttpRequest';
+    if (this.anonId) headers['X-Anon-Id'] = this.anonId;
     return headers;
   }
 
@@ -124,6 +155,7 @@ export class VintedApi {
           throw new VintedApiError('Onverwacht antwoord van Vinted (geen JSON).', {
             status: response.status,
             path,
+            method,
             body: text.slice(0, 500),
           });
         }
@@ -133,6 +165,7 @@ export class VintedApi {
       lastError = new VintedApiError(errorMessageFor(response.status, detail), {
         status: response.status,
         path,
+        method,
         body: detail,
       });
 
@@ -142,14 +175,22 @@ export class VintedApi {
     throw lastError;
   }
 
-  /** Try several known paths, return the first that answers. */
-  async requestFirst(paths, options) {
+  /**
+   * Try several known paths, return the first that answers.
+   *
+   * `fallbackOn` lists the statuses that mean "try the next variant". 404 is
+   * always one. Reads that identify the account also fall back on 401/403,
+   * because a route Vinted has retired can answer 403 rather than 404 — and
+   * giving up there would report a session problem the user does not have.
+   */
+  async requestFirst(paths, { fallbackOn = [404], ...options } = {}) {
+    const retryable = new Set([404, ...fallbackOn]);
     let lastError = null;
     for (const path of paths) {
       try {
         return await this.request(path, options);
       } catch (error) {
-        if (error instanceof VintedApiError && error.status === 404) {
+        if (error instanceof VintedApiError && retryable.has(error.status)) {
           lastError = error;
           continue;
         }
@@ -162,7 +203,10 @@ export class VintedApi {
   // ---------------------------------------------------------------- reads --
 
   async getCurrentUser({ signal } = {}) {
-    const data = await this.requestFirst(['/api/v2/users/current', '/api/v2/user'], { signal });
+    const data = await this.requestFirst(['/api/v2/users/current', '/api/v2/user'], {
+      signal,
+      fallbackOn: [401, 403],
+    });
     return data?.user ?? data ?? null;
   }
 
@@ -177,7 +221,7 @@ export class VintedApi {
         `/api/v2/wardrobe/${userId}/items?${query}`,
         `/api/v2/users/${userId}/items?${query}`,
       ],
-      { signal },
+      { signal, fallbackOn: [401, 403] },
     );
     return {
       items: data?.items ?? [],
@@ -195,6 +239,68 @@ export class VintedApi {
       { signal },
     );
     return data?.item ?? data ?? null;
+  }
+
+  /**
+   * Walk the read endpoints one by one and report what each one answers,
+   * without throwing. Because these endpoints are undocumented and can change,
+   * "it does not work" needs to become "this exact call returns this status".
+   */
+  async diagnose({ signal } = {}) {
+    const report = {
+      origin: this.origin,
+      hasCsrfToken: Boolean(this.csrfToken),
+      hasAnonId: Boolean(this.anonId),
+      hasCookies: Boolean(globalThis.document?.cookie),
+      userId: null,
+      itemCount: null,
+      checks: [],
+    };
+
+    const attempt = async (label, path) => {
+      try {
+        const data = await this.request(path, { signal });
+        report.checks.push({ label, path, status: 200, ok: true });
+        return data;
+      } catch (error) {
+        report.checks.push({
+          label,
+          path,
+          status: error?.status ?? 0,
+          ok: false,
+          detail:
+            typeof error?.body === 'string'
+              ? error.body.slice(0, 200)
+              : error?.body?.message || error?.message || null,
+        });
+        return null;
+      }
+    };
+
+    for (const path of ['/api/v2/users/current', '/api/v2/user']) {
+      const data = await attempt('Ingelogde gebruiker', path);
+      const id = data?.user?.id ?? data?.id ?? null;
+      if (id) {
+        report.userId = id;
+        break;
+      }
+    }
+
+    if (report.userId) {
+      const query = 'page=1&per_page=1';
+      for (const path of [
+        `/api/v2/wardrobe/${report.userId}/items?${query}`,
+        `/api/v2/users/${report.userId}/items?${query}`,
+      ]) {
+        const data = await attempt('Eigen advertenties', path);
+        if (data?.items) {
+          report.itemCount = data.pagination?.total_entries ?? data.items.length;
+          break;
+        }
+      }
+    }
+
+    return report;
   }
 
   // --------------------------------------------------------------- photos --

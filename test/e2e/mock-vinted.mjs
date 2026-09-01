@@ -24,7 +24,7 @@ export function createMockVinted({ items } = {}) {
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, 'http://www.vinted.nl');
     const path = url.pathname;
-    calls.push({ method: req.method, path });
+    calls.push({ method: req.method, path, headers: req.headers });
 
     const json = (body, status = 200) => {
       res.writeHead(status, { 'content-type': 'application/json' });
@@ -33,7 +33,11 @@ export function createMockVinted({ items } = {}) {
 
     // The page the content script is injected into.
     if (path === '/' || path === '/member/items') {
-      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+      res.writeHead(200, {
+        'content-type': 'text/html; charset=utf-8',
+        // The real site sets this; the extension must echo it back as X-Anon-Id.
+        'set-cookie': 'anon_id=test-anon-id; Path=/',
+      });
       res.end(
         '<!doctype html><html><head><meta name="csrf-token" content="test-csrf-token"></head>' +
           '<body><h1>Mock Vinted</h1></body></html>',
