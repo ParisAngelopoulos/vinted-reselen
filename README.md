@@ -78,6 +78,7 @@ en de `anon_id` aanwezig zijn. Zo hoef je niet te gokken welke stap faalt.
 | Wat je ziet | Wat het betekent |
 | --- | --- |
 | `Cookies: GEEN` | Je bent op díe Vinted-site niet ingelogd. Let op het domein bovenaan het rapport — ingelogd zijn op vinted.be helpt niet als de extensie vinted.nl opent. |
+| Een 403 met "een webpagina in plaats van API-gegevens" | Het verzoek vroeg niet om JSON, of het endpoint is buiten gebruik. Kijk bij **Waargenomen endpoints** welke paden en headers de site zelf gebruikt. |
 | Alle regels `✗ … 401` of `403` | De endpoints zijn waarschijnlijk gewijzigd. Kijk bij **Waargenomen endpoints** welke paden de site zelf gebruikt. |
 | Een enkele regel met `✗ … 401` of `403` | Vinted weigert die specifieke aanroep. Ververs de Vinted-pagina en probeer opnieuw; blijft het, dan is het endpoint waarschijnlijk gewijzigd — zie [`docs/vinted-api.md`](docs/vinted-api.md). |
 | "Vinted weigerde de gegevens (422)" | Er ontbreekt een veld voor de nieuwe advertentie. De log noemt meestal de reden. |

@@ -23,7 +23,7 @@ export async function listObserved() {
  */
 let queue = Promise.resolve();
 
-export function recordObserved({ entry, status }) {
+export function recordObserved({ entry, status, headers }) {
   if (!entry) return Promise.resolve();
 
   const result = queue.then(async () => {
@@ -32,9 +32,16 @@ export function recordObserved({ entry, status }) {
     if (existing) {
       existing.count += 1;
       existing.status = status ?? existing.status;
+      existing.headers = headers?.length ? headers : existing.headers;
       existing.lastSeen = Date.now();
     } else {
-      observed.push({ entry, status: status ?? 0, count: 1, lastSeen: Date.now() });
+      observed.push({
+        entry,
+        status: status ?? 0,
+        headers: headers ?? [],
+        count: 1,
+        lastSeen: Date.now(),
+      });
     }
     await chrome.storage.local.set({ [KEY]: observed.slice(-MAX) });
   });
@@ -57,6 +64,11 @@ export function formatObserved(observed) {
   }
   return [...observed]
     .sort((a, b) => a.entry.localeCompare(b.entry))
-    .map((row) => `${String(row.status).padStart(3)}  ${row.entry}`)
+    .flatMap((row) => {
+      const line = `${String(row.status).padStart(3)}  ${row.entry}`;
+      // Which headers the site sends is what the extension has to match; the
+      // values are deliberately never recorded.
+      return row.headers?.length ? [line, `     headers: ${row.headers.join(', ')}`] : [line];
+    })
     .join('\n');
 }

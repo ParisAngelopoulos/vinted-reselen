@@ -169,7 +169,11 @@
     if (event.source !== window) return;
     const message = event.data;
     if (!message || message.source !== RECORDER_CHANNEL || message.ready) return;
-    recordObserved({ entry: message.entry, status: message.status }).catch(() => {});
+    recordObserved({
+      entry: message.entry,
+      status: message.status,
+      headers: message.headers,
+    }).catch(() => {});
   });
   // Ask the recorder to replay whatever it saw before this listener existed.
   window.postMessage({ source: RECORDER_CHANNEL, ready: true }, location.origin);

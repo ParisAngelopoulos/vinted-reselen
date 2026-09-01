@@ -51,10 +51,11 @@ function asHtmlMarker(text) {
   return { __html: true, title, snippet: text.replace(/\s+/g, ' ').slice(0, 120) };
 }
 
-const JSON_HEADERS = {
-  Accept: 'application/json, text/plain, */*',
-  'Content-Type': 'application/json',
-};
+/** Sent on every request, exactly as the site's own front-end does. */
+const ACCEPT_JSON = 'application/json, text/plain, */*';
+
+/** Added on top of that for requests that carry a JSON body. */
+const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
 export class VintedApi {
   /**
@@ -132,7 +133,11 @@ export class VintedApi {
    * earn a 403 while holding a perfectly valid session.
    */
   headers(extra = {}) {
-    const headers = { ...extra };
+    // Vinted runs on Rails, which negotiates on Accept: a request that does not
+    // ask for JSON is answered with the HTML page instead of API data. Without
+    // this the reply is a web page, which reads as "blocked" but is really just
+    // the wrong representation being served.
+    const headers = { Accept: ACCEPT_JSON, ...extra };
     if (this.csrfToken) headers['X-CSRF-Token'] = this.csrfToken;
     if (this.anonId) headers['X-Anon-Id'] = this.anonId;
     return headers;
@@ -213,6 +218,13 @@ export class VintedApi {
         }
         throw error;
       }
+    }
+    if (lastError && paths.length > 1) {
+      lastError.attemptedPaths = paths;
+      lastError.message = `${lastError.message} — ook geprobeerd: ${paths
+        .filter((path) => path !== lastError.path)
+        .map((path) => path.split('?')[0])
+        .join(', ')}`;
     }
     throw lastError ?? new VintedApiError('Geen bruikbaar endpoint gevonden.', { path: paths[0] });
   }

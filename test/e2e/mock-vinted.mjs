@@ -27,6 +27,15 @@ export function createMockVinted({ items } = {}) {
     calls.push({ method: req.method, path, headers: req.headers });
 
     const json = (body, status = 200) => {
+      // Rails negotiates on Accept: a caller that does not ask for JSON is
+      // served the HTML page instead of API data. Vinted behaves this way, and
+      // it is what made a working endpoint look like a blocked one.
+      const accept = req.headers.accept || '';
+      if (path.startsWith('/api/') && !accept.includes('application/json')) {
+        res.writeHead(403, { 'content-type': 'text/html' });
+        res.end('<!doctype html><html><head><title>Vinted</title></head><body>Access denied</body></html>');
+        return;
+      }
       res.writeHead(status, { 'content-type': 'application/json' });
       res.end(JSON.stringify(body));
     };

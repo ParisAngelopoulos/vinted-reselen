@@ -34,14 +34,36 @@
     const message = event.data;
     if (!message || message.source !== CHANNEL || !message.ready) return;
     listenerReady = true;
-    for (const [entry, status] of entries) publish(entry, status);
+    for (const [entry, record] of entries) publish(entry, record);
   });
 
-  function publish(entry, status) {
-    window.postMessage({ source: CHANNEL, entry, status }, location.origin);
+  function publish(entry, record) {
+    window.postMessage(
+      { source: CHANNEL, entry, status: record.status, headers: record.headers },
+      location.origin,
+    );
   }
 
-  function report(method, rawUrl, status) {
+  /**
+   * Header *names* only — never values. A name says which headers the site
+   * considers necessary, which is exactly what the extension needs to match;
+   * a value could be a session token.
+   */
+  function headerNames(source) {
+    try {
+      if (!source) return [];
+      const names = source instanceof Headers
+        ? [...source.keys()]
+        : Array.isArray(source)
+          ? source.map(([name]) => name)
+          : Object.keys(source);
+      return [...new Set(names.map((name) => String(name).toLowerCase()))].sort();
+    } catch {
+      return [];
+    }
+  }
+
+  function report(method, rawUrl, status, headers) {
     try {
       if (!rawUrl) return;
       const url = new URL(rawUrl, location.href);
@@ -52,9 +74,10 @@
       const query = keys.length ? `?${keys.join('&')}` : '';
       const entry = `${String(method || 'GET').toUpperCase()} ${url.pathname}${query}`;
       if (entries.has(entry)) return;
-      entries.set(entry, status ?? 0);
+      const record = { status: status ?? 0, headers: headers ?? [] };
+      entries.set(entry, record);
 
-      if (listenerReady) publish(entry, status ?? 0);
+      if (listenerReady) publish(entry, record);
     } catch {
       /* never let bookkeeping break the page */
     }
@@ -66,11 +89,14 @@
     window.fetch = function fetch(input, init) {
       const url = typeof input === 'string' ? input : input?.url;
       const method = init?.method || (typeof input === 'object' ? input?.method : null) || 'GET';
+      const sent = headerNames(
+        init?.headers ?? (typeof input === 'object' ? input?.headers : null),
+      );
       const result = originalFetch.apply(this, arguments);
       // Observe the outcome without altering the promise the caller receives.
       Promise.resolve(result).then(
-        (response) => report(method, url, response?.status),
-        () => report(method, url, 0),
+        (response) => report(method, url, response?.status, sent),
+        () => report(method, url, 0, sent),
       );
       return result;
     };
@@ -81,15 +107,26 @@
   const originalSend = XMLHttpRequest.prototype.send;
   const marker = Symbol('vinted-relister');
 
+  const originalSetHeader = XMLHttpRequest.prototype.setRequestHeader;
+
   XMLHttpRequest.prototype.open = function open(method, url) {
-    this[marker] = { method, url };
+    this[marker] = { method, url, headers: [] };
     return originalOpen.apply(this, arguments);
+  };
+
+  XMLHttpRequest.prototype.setRequestHeader = function setRequestHeader(name) {
+    if (this[marker]) this[marker].headers.push(String(name).toLowerCase());
+    return originalSetHeader.apply(this, arguments);
   };
 
   XMLHttpRequest.prototype.send = function send() {
     const info = this[marker];
     if (info) {
-      this.addEventListener('loadend', () => report(info.method, info.url, this.status), { once: true });
+      this.addEventListener(
+        'loadend',
+        () => report(info.method, info.url, this.status, [...new Set(info.headers)].sort()),
+        { once: true },
+      );
     }
     return originalSend.apply(this, arguments);
   };

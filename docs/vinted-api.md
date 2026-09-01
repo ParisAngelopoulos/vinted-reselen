@@ -86,8 +86,13 @@ De extensie stuurt exact wat de Vinted-webapp zelf ook stuurt, niet meer:
 
 | Header | Herkomst | Waarom |
 | --- | --- | --- |
-| `X-CSRF-Token` | `meta[name=csrf-token]` op de pagina, of de Next.js-bootstrap | Vereist voor schrijfacties |
-| `X-Anon-Id` | de `anon_id`-cookie | Meerdere routes antwoorden `403` zonder deze header, ook met een geldige sessie |
+| `Accept: application/json, …` | vast | **Op elk verzoek.** Vinted draait op Rails en doet content-negotiation: een aanroep die niet om JSON vraagt krijgt de HTML-pagina in plaats van API-gegevens. Dat leest als "geblokkeerd" terwijl het endpoint prima werkt. |
+| `X-CSRF-Token` | `meta[name=csrf-token]` op de pagina, of de Next.js-bootstrap | Vereist voor schrijfacties; op het huidige Vinted vaak afwezig |
+| `X-Anon-Id` | de `anon_id`-cookie | De site stuurt deze bij elke API-aanroep mee |
+
+De opname bij **Waargenomen endpoints** noteert ook de *namen* van de headers die de site
+zelf meestuurt (nooit de waarden). Dat is de snelste manier om te zien of de extensie
+iets mist.
 
 Een extra header die de echte site *niet* stuurt (zoals `X-Requested-With`) laat het
 verzoek juist opvallen bij de bot-bescherming en kan een `403` opleveren terwijl er niets

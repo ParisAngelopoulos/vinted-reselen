@@ -210,3 +210,44 @@ test('an HTML body on a successful-looking route is not mistaken for JSON', () =
   // Guard against a page that merely mentions doctype inside a JSON string.
   assert.doesNotMatch(JSON.stringify({ note: '<!doctype html>' }), /^<!doctype/i);
 });
+
+test('every request asks for JSON, not just the writes', async () => {
+  const client = api({
+    '/api/v2/wardrobe/7/items?page=1&per_page=20&order=relevance': { body: { items: [] } },
+  });
+  await client.listOwnItems(7);
+
+  const { headers } = client.fetchImpl.seen[0];
+  assert.match(
+    headers.Accept,
+    /application\/json/,
+    'Rails serves the HTML page to a caller that does not ask for JSON',
+  );
+});
+
+test('a JSON body request keeps both Accept and Content-Type', async () => {
+  const client = api({ '/api/v2/item_upload/items': { body: { item: { id: 1 } } } });
+  await client.createItem({ item: {} });
+
+  const { headers } = client.fetchImpl.seen[0];
+  assert.match(headers.Accept, /application\/json/);
+  assert.equal(headers['Content-Type'], 'application/json');
+});
+
+test('when every variant fails the error names all of them', async () => {
+  const client = api({
+    '/api/v2/wardrobe/7/items?page=1&per_page=20&order=relevance': { status: 403, body: {} },
+    '/api/v2/users/7/items?page=1&per_page=20&order=relevance': { status: 403, body: {} },
+  });
+  await assert.rejects(
+    () => client.listOwnItems(7),
+    (error) => {
+      assert.match(
+        error.message,
+        /ook geprobeerd: \/api\/v2\/wardrobe\/7\/items/,
+        'reporting only the last attempt hides that the preferred route failed too',
+      );
+      return true;
+    },
+  );
+});
