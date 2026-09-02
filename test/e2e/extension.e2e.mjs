@@ -441,7 +441,9 @@ check('de recorder vangt op wat de site zelf aanroept, ook via XHR', async ({
   assert.doesNotMatch(output, /token-from-site|anon_id=/, 'er mag geen token of cookie in belanden');
   assert.doesNotMatch(output, /per_page=20/, 'alleen parameternamen, geen waarden');
   // The field names of a write are what the extension has to match.
-  assert.match(output, /velden:\s+photo\[type\], photo\[file\] \(bestand\)/);
+  // The photo endpoint is the one place a field value is recorded, because it
+  // is the last unknown in a request the extension must reproduce exactly.
+  assert.match(output, /velden:\s+photo\[type\]=item_photo, photo\[file\] \(bestand\)/);
 
   await page.close();
   await vinted.close();

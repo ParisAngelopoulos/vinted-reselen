@@ -55,12 +55,15 @@ function asHtmlMarker(text) {
 }
 
 /**
- * Field names of the multipart photo upload, listed here so the connection
- * test can compare them against what the site itself was seen sending. The
- * field names are what define a multipart upload, and one wrong name produces
- * an unhelpful "photo rejected" from Vinted with nothing to go on.
+ * Fields of the multipart photo upload, in the order the site itself sends
+ * them. Order is part of a multipart body, not an incidental detail: a parser
+ * that streams the file as it arrives can depend on which fields precede it.
+ * The observed order is photo[type], photo[file], photo[temp_uuid].
+ *
+ * Listed here so the connection test can compare names *and* order against
+ * what the site was seen sending.
  */
-export const UPLOAD_FIELD_NAMES = ['photo[type]', 'photo[temp_uuid]', 'photo[file]'];
+export const UPLOAD_FIELD_NAMES = ['photo[type]', 'photo[file]', 'photo[temp_uuid]'];
 
 /** Sent on every request, exactly as the site's own front-end does. */
 const ACCEPT_JSON = 'application/json, text/plain, */*';
@@ -422,11 +425,11 @@ export class VintedApi {
    * Upload one photo to the temporary upload session.
    * @returns {Promise<{id: number}>}
    */
-  async uploadPhoto(blob, { tempUuid, filename = 'photo.jpg', signal } = {}) {
+  async uploadPhoto(blob, { tempUuid, filename = 'photo.jpg', photoType = 'item_photo', signal } = {}) {
     const form = new FormData();
-    form.append('photo[type]', 'item_photo');
-    form.append('photo[temp_uuid]', tempUuid);
+    form.append('photo[type]', photoType);
     form.append('photo[file]', blob, filename);
+    form.append('photo[temp_uuid]', tempUuid);
 
     // Content-Type must be left to the browser so the multipart boundary is set.
     let data;

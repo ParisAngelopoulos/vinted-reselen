@@ -104,8 +104,20 @@ function formatUploadShape(upload) {
       `  Wij sturen nu: ${upload.ours.join(', ')}`,
     ].join('\n');
   }
+  const typeNote =
+    upload.theirType && upload.theirType !== 'item_photo'
+      ? `\n  LET OP: Vinted stuurt photo[type]=${upload.theirType}, wij sturen item_photo.`
+      : '';
+
+  if (!upload.missing.length && !upload.extra.length && upload.sameOrder !== false) {
+    return `Upload-vorm:     komt overeen (${upload.ours.join(', ')})${typeNote}`;
+  }
   if (!upload.missing.length && !upload.extra.length) {
-    return `Upload-vorm:     komt overeen (${upload.ours.join(', ')})`;
+    return [
+      'Upload-vorm:     zelfde velden, ANDERE VOLGORDE.',
+      `  Vinted stuurt: ${upload.theirs.join(', ')}`,
+      `  wij sturen:    ${upload.ours.join(', ')}`,
+    ].join('\n');
   }
   return [
     'Upload-vorm:     WIJKT AF van wat de site zelf stuurt.',

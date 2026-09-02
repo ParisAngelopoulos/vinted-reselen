@@ -110,18 +110,29 @@
   }
 
   /**
-   * Field *names* of a request body, never values and never file contents.
-   * A multipart upload is defined by its field names — that is exactly what
-   * the extension has to match, and none of it is personal data.
+   * Field *names* of a request body, never file contents.
+   *
+   * Values are recorded for one endpoint only: the photo upload. Its non-file
+   * fields are structural constants (a type enum, a client-generated uuid) and
+   * they are the last unknown in a request the extension has to reproduce
+   * exactly. Everywhere else only names are kept, since a body there can carry
+   * a description, a price, or anything else personal.
    */
-  function bodyFields(body) {
+  const VALUES_ALLOWED_ON = /\/api\/v\d+\/photos$/;
+  function bodyFields(body, { withValues = false } = {}) {
     try {
       if (!body) return [];
       if (typeof FormData !== 'undefined' && body instanceof FormData) {
         const names = [];
         for (const [name, value] of body.entries()) {
           const isFile = typeof value === 'object' && value !== null && 'size' in value;
-          names.push(isFile ? `${name} (bestand)` : name);
+          if (isFile) {
+            names.push(`${name} (bestand)`);
+          } else if (withValues && String(value).length <= 64) {
+            names.push(`${name}=${value}`);
+          } else {
+            names.push(name);
+          }
         }
         return [...new Set(names)];
       }
@@ -163,7 +174,13 @@
       const method = init?.method || (typeof input === 'object' ? input?.method : null) || 'GET';
       const rawHeaders = init?.headers ?? (typeof input === 'object' ? input?.headers : null);
       const sent = headerNames(rawHeaders);
-      const fields = bodyFields(init?.body);
+      let withValues = false;
+      try {
+        withValues = VALUES_ALLOWED_ON.test(new URL(url, location.href).pathname);
+      } catch {
+        /* leave it off when the URL cannot be parsed */
+      }
+      const fields = bodyFields(init?.body, { withValues });
       captureCsrfFrom(rawHeaders);
       const result = originalFetch.apply(this, arguments);
       // Observe the outcome without altering the promise the caller receives.

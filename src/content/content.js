@@ -116,7 +116,13 @@
     if (!row?.fields?.length) {
       return { seen: false, ours: UPLOAD_FIELD_NAMES };
     }
-    const theirs = row.fields.map((field) => field.replace(/ \(bestand\)$/, ''));
+    // Rows may carry "name=value" for this endpoint; compare on the names.
+    const theirs = row.fields.map((field) =>
+      field.replace(/ \(bestand\)$/, '').replace(/=.*$/, ''),
+    );
+    const theirType = row.fields
+      .find((field) => field.startsWith('photo[type]='))
+      ?.split('=')[1] ?? null;
     return {
       seen: true,
       status: row.status,
@@ -124,6 +130,10 @@
       ours: UPLOAD_FIELD_NAMES,
       missing: theirs.filter((field) => !UPLOAD_FIELD_NAMES.includes(field)),
       extra: UPLOAD_FIELD_NAMES.filter((field) => !theirs.includes(field)),
+      // Order is part of a multipart body; comparing the names as a set alone
+      // reported "matches" while the file sat in a different position.
+      sameOrder: theirs.join('|') === UPLOAD_FIELD_NAMES.join('|'),
+      theirType,
       headers: row.headers ?? [],
     };
   }

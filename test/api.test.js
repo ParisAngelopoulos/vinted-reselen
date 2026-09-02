@@ -345,3 +345,24 @@ test('field errors given as an object are reported too', () => {
   const error = new VintedApiError('x', { status: 422 });
   assert.ok(error instanceof VintedApiError);
 });
+
+test('the multipart fields go out in the order the site uses', async () => {
+  // Order is part of a multipart body: a parser that streams the file as it
+  // arrives can depend on which fields precede it.
+  const client = api({ '/api/v2/photos': { body: { id: 1 } } });
+  const sent = [];
+  client.fetchImpl = async (url, init) => {
+    for (const [name] of init.body.entries()) sent.push(name);
+    return new Response('{"id":1}', { status: 200 });
+  };
+  await client.uploadPhoto(new Blob(['x'], { type: 'image/jpeg' }), {
+    tempUuid: 'uuid-1',
+    filename: 'a.jpg',
+  });
+  assert.deepEqual(sent, ['photo[type]', 'photo[file]', 'photo[temp_uuid]']);
+});
+
+test('UPLOAD_FIELD_NAMES states that same order', async () => {
+  const { UPLOAD_FIELD_NAMES } = await import('../src/lib/api.js');
+  assert.deepEqual(UPLOAD_FIELD_NAMES, ['photo[type]', 'photo[file]', 'photo[temp_uuid]']);
+});

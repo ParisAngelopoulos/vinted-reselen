@@ -40,9 +40,14 @@ plaats van `brand_id`/`brand`, `color1_id`/`color2_id` in plaats van `color_ids`
 
 | Doel | Aanroep |
 | --- | --- |
-| Foto uploaden | `POST /api/v2/photos` (multipart: `photo[type]=item_photo`, `photo[temp_uuid]`, `photo[file]`) |
+| Foto uploaden | `POST /api/v2/photos` (multipart, in deze volgorde: `photo[type]=item_photo`, `photo[file]`, `photo[temp_uuid]`) |
 | Advertentie aanmaken | `POST /api/v2/item_upload/items` |
 | Advertentie verwijderen | `DELETE /api/v2/items/{id}`, terugval `POST /api/v2/items/{id}/delete` |
+
+De **volgorde** van de multipart-velden is overgenomen van wat de site zelf stuurt. Bij
+multipart is de volgorde onderdeel van het verzoek: een parser die het bestand streamt
+terwijl het binnenkomt kan afhangen van welke velden eraan voorafgaan. Een vergelijking op
+veldnamen als verzameling meldde daardoor ten onrechte "komt overeen".
 
 Foto's kunnen niet worden hergebruikt tussen advertenties: ze horen bij een
 upload-sessie. De extensie downloadt daarom elke foto van de oude advertentie en uploadt
