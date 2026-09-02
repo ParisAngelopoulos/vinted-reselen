@@ -74,8 +74,22 @@ test('resolveUserId falls back to a remembered id, then to observed traffic', ()
   );
 });
 
+test('resolveUserId falls back to what the API reported', () => {
+  // Without this the report can say "could not determine your id" on one line
+  // and "logged in as 3152705349" two lines below it.
+  const result = resolveUserId({ pathname: '/items/new', apiUserId: 3152705349 });
+  assert.equal(result.id, '3152705349');
+  assert.match(result.source, /opgevraagd/);
+});
+
+test('the API fallback ranks below the cheaper sources', () => {
+  const result = resolveUserId({ pathname: '/member/111', apiUserId: 999 });
+  assert.equal(result.id, '111', 'no request is needed when the page already says so');
+});
+
 test('resolveUserId reports failure rather than inventing an id', () => {
   const result = resolveUserId({ pathname: '/catalog' });
   assert.equal(result.id, null);
   assert.equal(result.source, 'onbekend');
+  assert.equal(resolveUserId({ pathname: '/catalog', apiUserId: 'nope' }).id, null);
 });

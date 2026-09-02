@@ -429,11 +429,15 @@ export class VintedApi {
     form.append('photo[file]', blob, filename);
 
     // Content-Type must be left to the browser so the multipart boundary is set.
-    const data = await this.request('/api/v2/photos', {
-      method: 'POST',
-      body: form,
-      signal,
-    });
+    let data;
+    try {
+      data = await this.request('/api/v2/photos', { method: 'POST', body: form, signal });
+    } catch (error) {
+      // Say what we actually sent: a rejection usually turns on the file, and
+      // "photo rejected" alone gives nothing to compare against.
+      error.message = `${error.message} — verstuurd: ${filename}, ${blob.type || 'onbekend type'}, ${Math.round((blob.size || 0) / 1024)} kB`;
+      throw error;
+    }
     const id = data?.id ?? data?.photo?.id;
     if (!id) {
       throw new VintedApiError('Vinted gaf geen foto-id terug na het uploaden.', {
@@ -484,6 +488,37 @@ export class VintedApi {
   }
 }
 
+/**
+ * Vinted's error bodies carry more than `message`: a `message_code` and often
+ * a per-field `errors` array naming exactly what it objected to. Dropping
+ * those leaves the user with "Foutmelding bij uploaden foto" and nothing to
+ * act on.
+ */
+function describeServerError(detail) {
+  if (!detail || typeof detail !== 'object') return null;
+  const parts = [];
+  if (detail.message || detail.error) parts.push(detail.message || detail.error);
+  if (detail.message_code) parts.push(`code: ${detail.message_code}`);
+
+  const errors = detail.errors ?? detail.error_details;
+  if (Array.isArray(errors) && errors.length) {
+    const fields = errors
+      .map((entry) =>
+        typeof entry === 'string'
+          ? entry
+          : [entry.field, entry.value ?? entry.message ?? entry.code].filter(Boolean).join(': '),
+      )
+      .filter(Boolean);
+    if (fields.length) parts.push(`velden: ${fields.join('; ')}`);
+  } else if (errors && typeof errors === 'object') {
+    const fields = Object.entries(errors).map(
+      ([field, value]) => `${field}: ${Array.isArray(value) ? value.join(', ') : value}`,
+    );
+    if (fields.length) parts.push(`velden: ${fields.join('; ')}`);
+  }
+  return parts.length ? parts.join(' — ') : null;
+}
+
 /** One readable line about a failed call — never a dump of raw markup. */
 function describeFailure(error) {
   if (error?.isBlockPage) {
@@ -515,8 +550,7 @@ function errorMessageFor(status, detail) {
       'geblokkeerd door de beveiliging van de site, niet door een verlopen sessie.'
     );
   }
-  const serverMessage =
-    (detail && typeof detail === 'object' && (detail.message || detail.error)) || null;
+  const serverMessage = describeServerError(detail);
   if (status === 401 || status === 403) {
     return serverMessage || 'Niet ingelogd of sessie verlopen — log opnieuw in op Vinted.';
   }

@@ -73,19 +73,26 @@
    * from the profile URL, an earlier visit, or the traffic the site itself
    * made. See src/lib/user-id.js.
    */
-  async function currentUserId() {
+  async function currentUserId(api = null) {
     const settings = await loadSettings();
     const [{ knownUserId }, observed] = await Promise.all([
       chrome.storage.local.get('knownUserId'),
       listObserved(),
     ]);
 
-    const resolved = resolveUserId({
+    let resolved = resolveUserId({
       override: settings.userId,
       remembered: knownUserId,
       pathname: location.pathname,
       observed,
     });
+
+    // Only worth a request when nothing cheaper answered.
+    if (!resolved.id && api) {
+      const user = await api.getCurrentUser().catch(() => null);
+      resolved = resolveUserId({ apiUserId: user?.id });
+      if (resolved.id) await chrome.storage.local.set({ knownUserId: resolved.id });
+    }
 
     if (!resolved.id) {
       throw new Error(
@@ -121,7 +128,7 @@
 
   async function handleListItems({ page = 1, perPage = 20 } = {}) {
     const { api } = await makeApi();
-    const user = await currentUserId();
+    const user = await currentUserId(api);
     const { items, pagination } = await api.listOwnItems(user.id, { page, perPage });
     return {
       user: { id: user.id, source: user.source },
@@ -237,7 +244,7 @@
         // how it was resolved — that is what actually decides whether the
         // extension can list anything.
         try {
-          const user = await currentUserId();
+          const user = await currentUserId(api);
           report.resolvedUserId = user.id;
           report.userIdSource = user.source;
         } catch (error) {

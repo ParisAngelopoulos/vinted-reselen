@@ -42,10 +42,14 @@ export function wardrobeIdsFromObserved(observed = []) {
  * Decide which id to use, and say where it came from so the UI can explain
  * itself when it picks wrong.
  *
- * @param {{override?: string, remembered?: string, pathname?: string, observed?: Array}} sources
+ * `apiUserId` comes last because it costs a request the other sources do not,
+ * but it must be in the chain: without it the extension can report "could not
+ * determine your id" while the API right next to it knows exactly who you are.
+ *
+ * @param {{override?: string, remembered?: string, pathname?: string, observed?: Array, apiUserId?: string|number}} sources
  * @returns {{id: string|null, source: string}}
  */
-export function resolveUserId({ override, remembered, pathname, observed } = {}) {
+export function resolveUserId({ override, remembered, pathname, observed, apiUserId } = {}) {
   const cleanOverride = String(override || '').trim();
   if (/^\d+$/.test(cleanOverride)) {
     return { id: cleanOverride, source: 'handmatig ingesteld' };
@@ -60,6 +64,10 @@ export function resolveUserId({ override, remembered, pathname, observed } = {})
 
   const [mostSeen] = wardrobeIdsFromObserved(observed);
   if (mostSeen) return { id: mostSeen, source: 'waargenomen verzoek van de site' };
+
+  if (apiUserId !== undefined && apiUserId !== null && /^\d+$/.test(String(apiUserId))) {
+    return { id: String(apiUserId), source: 'opgevraagd bij Vinted' };
+  }
 
   return { id: null, source: 'onbekend' };
 }

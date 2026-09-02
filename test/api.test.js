@@ -316,3 +316,32 @@ test('a real image passes the download check', async () => {
   const blob = await client.downloadPhoto('https://images.vinted.net/a');
   assert.equal(blob.type, 'image/webp');
 });
+
+test("Vinted's per-field errors reach the message", async () => {
+  const client = api({
+    '/api/v2/photos': {
+      status: 422,
+      body: {
+        message: 'Foutmelding bij uploaden foto',
+        message_code: 'photo_invalid',
+        errors: [{ field: 'photo[file]', value: 'moet een afbeelding zijn' }],
+      },
+    },
+  });
+
+  await assert.rejects(
+    () => client.uploadPhoto(new Blob(['x'], { type: 'image/webp' }), { tempUuid: 'u', filename: 'a.webp' }),
+    (error) => {
+      assert.match(error.message, /Foutmelding bij uploaden foto/);
+      assert.match(error.message, /code: photo_invalid/);
+      assert.match(error.message, /velden: photo\[file\]: moet een afbeelding zijn/);
+      assert.match(error.message, /verstuurd: a\.webp, image\/webp/, 'what we sent must be visible too');
+      return true;
+    },
+  );
+});
+
+test('field errors given as an object are reported too', () => {
+  const error = new VintedApiError('x', { status: 422 });
+  assert.ok(error instanceof VintedApiError);
+});
