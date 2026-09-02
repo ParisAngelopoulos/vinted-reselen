@@ -14,7 +14,7 @@
   const base = (path) => chrome.runtime.getURL(path);
 
   const [
-    { VintedApi },
+    { VintedApi, UPLOAD_FIELD_NAMES },
     { relistBatch, summarise },
     { MSG },
     { loadSettings },
@@ -94,6 +94,29 @@
       );
     }
     return resolved;
+  }
+
+  /**
+   * How our photo upload compares to the one the site itself makes. Relisting
+   * cannot work until this matches, and until the site has been seen uploading
+   * once there is nothing to compare against.
+   */
+  async function compareUploadShape() {
+    const observed = await listObserved();
+    const row = observed.find((entry) => /POST \/api\/v\d+\/photos/.test(entry.entry));
+    if (!row?.fields?.length) {
+      return { seen: false, ours: UPLOAD_FIELD_NAMES };
+    }
+    const theirs = row.fields.map((field) => field.replace(/ \(bestand\)$/, ''));
+    return {
+      seen: true,
+      status: row.status,
+      theirs,
+      ours: UPLOAD_FIELD_NAMES,
+      missing: theirs.filter((field) => !UPLOAD_FIELD_NAMES.includes(field)),
+      extra: UPLOAD_FIELD_NAMES.filter((field) => !theirs.includes(field)),
+      headers: row.headers ?? [],
+    };
   }
 
   async function handleListItems({ page = 1, perPage = 20 } = {}) {
@@ -221,6 +244,7 @@
           report.resolvedUserId = null;
           report.userIdSource = error.message;
         }
+        report.upload = await compareUploadShape();
         return report;
       },
       [MSG.START]: () => handleStart(message.payload),

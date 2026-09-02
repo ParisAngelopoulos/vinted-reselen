@@ -278,3 +278,41 @@ test('an error names the status, not just the endpoint', () => {
     "Vinted's own wording says nothing about refused vs rejected vs rate-limited",
   );
 });
+
+test('a downloaded photo that is not an image is refused before it is uploaded', async () => {
+  const client = new VintedApi({
+    origin: 'https://www.vinted.nl',
+    minGapMs: 0,
+    fetchImpl: async () =>
+      new Response('<!doctype html><html><body>nope</body></html>', {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+      }),
+  });
+
+  await assert.rejects(
+    () => client.downloadPhoto('https://images.vinted.net/a.jpg'),
+    (error) => {
+      assert.match(
+        error.message,
+        /geen afbeelding op maar text\/html/,
+        'uploading whatever came back turns a CDN error page into an opaque rejection',
+      );
+      return true;
+    },
+  );
+});
+
+test('a real image passes the download check', async () => {
+  const client = new VintedApi({
+    origin: 'https://www.vinted.nl',
+    minGapMs: 0,
+    fetchImpl: async () =>
+      new Response(new Uint8Array([1, 2, 3]), {
+        status: 200,
+        headers: { 'content-type': 'image/webp' },
+      }),
+  });
+  const blob = await client.downloadPhoto('https://images.vinted.net/a');
+  assert.equal(blob.type, 'image/webp');
+});

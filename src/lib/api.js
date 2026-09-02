@@ -54,6 +54,14 @@ function asHtmlMarker(text) {
   return { __html: true, title, snippet: text.replace(/\s+/g, ' ').slice(0, 120) };
 }
 
+/**
+ * Field names of the multipart photo upload, listed here so the connection
+ * test can compare them against what the site itself was seen sending. The
+ * field names are what define a multipart upload, and one wrong name produces
+ * an unhelpful "photo rejected" from Vinted with nothing to go on.
+ */
+export const UPLOAD_FIELD_NAMES = ['photo[type]', 'photo[temp_uuid]', 'photo[file]'];
+
 /** Sent on every request, exactly as the site's own front-end does. */
 const ACCEPT_JSON = 'application/json, text/plain, */*';
 
@@ -397,6 +405,15 @@ export class VintedApi {
     const blob = await response.blob();
     if (!blob.size) {
       throw new VintedApiError('Foto downloaden leverde een leeg bestand op.', { path: url });
+    }
+    // Uploading whatever came back without checking turns a CDN error page into
+    // an opaque "photo rejected" from Vinted. Fail here, where the cause is
+    // still visible.
+    if (blob.type && !blob.type.startsWith('image/')) {
+      throw new VintedApiError(
+        `De foto-URL leverde geen afbeelding op maar ${blob.type} (${blob.size} bytes).`,
+        { path: url, method: 'GET' },
+      );
     }
     return blob;
   }

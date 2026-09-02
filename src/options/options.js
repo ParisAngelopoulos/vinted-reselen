@@ -83,6 +83,32 @@ document.getElementById('clear-backups').addEventListener('click', async () => {
   flash('Back-ups gewist.');
 });
 
+/** Whether our photo upload matches the one the site itself makes. */
+function formatUploadShape(upload) {
+  if (!upload) return 'Upload-vorm: onbekend.';
+  if (!upload.seen) {
+    return [
+      'Upload-vorm:     NOG NIET WAARGENOMEN — dit blokkeert het relisten.',
+      '  Ga op Vinted een advertentie plaatsen en voeg één foto toe; je hoeft hem',
+      '  niet af te maken. Kom daarna hier terug en test opnieuw.',
+      `  Wij sturen nu: ${upload.ours.join(', ')}`,
+    ].join('\n');
+  }
+  if (!upload.missing.length && !upload.extra.length) {
+    return `Upload-vorm:     komt overeen (${upload.ours.join(', ')})`;
+  }
+  return [
+    'Upload-vorm:     WIJKT AF van wat de site zelf stuurt.',
+    `  Vinted stuurt: ${upload.theirs.join(', ')}`,
+    `  wij sturen:    ${upload.ours.join(', ')}`,
+    upload.missing.length ? `  ontbreekt bij ons: ${upload.missing.join(', ')}` : null,
+    upload.extra.length ? `  te veel bij ons:   ${upload.extra.join(', ')}` : null,
+    upload.headers.length ? `  headers van de site: ${upload.headers.join(', ')}` : null,
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
 /** Turns "it does not work" into a report naming the exact failing call. */
 function formatDiagnosis(report) {
   const lines = [
@@ -105,6 +131,8 @@ function formatDiagnosis(report) {
     if (check.detail) lines.push(`    ${check.detail}`);
   }
 
+  lines.push('');
+  lines.push(formatUploadShape(report.upload));
   lines.push('');
   lines.push(
     report.resolvedUserId
