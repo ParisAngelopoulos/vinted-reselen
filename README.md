@@ -45,6 +45,7 @@ online en verlopen vanzelf.
 | --- | --- |
 | **Volgorde** | `Eerst plaatsen, dan verwijderen` (standaard) houdt je advertentie online als het uploaden misgaat. `Eerst verwijderen` doet het andersom; het item staat dan heel even offline. |
 | **Testmodus** | Alles doorlopen inclusief de foto-upload, maar zonder een advertentie aan te maken of te verwijderen. |
+| **Foto's hercoderen** | Zelfde foto, andere bytes. Nodig als Vinted de upload weigert omdat hij het bestand herkent als een van zijn eigen; de verbindingstest zegt of dat zo is. |
 | **Pauze tussen items** | Standaard 45 s plus 0–20 s willekeurig. Rustig aan werkt betrouwbaarder. |
 | **Maximaal aantal per sessie** | Harde bovengrens per run, standaard 10. |
 | **Prijs** | Ongewijzigd overnemen, of met een percentage/bedrag aanpassen (met minimumprijs als ondergrens). |

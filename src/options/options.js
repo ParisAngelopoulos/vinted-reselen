@@ -97,7 +97,23 @@ function formatUploadProbe(probe) {
     return ['Foto-upload:     GELUKT', ...details, `  foto-id:   ${probe.photoId}`].join('\n');
   }
   if (probe.reason) return `Foto-upload:     niet getest — ${probe.reason}.`;
-  return ['Foto-upload:     MISLUKT', `  ${probe.error}`, ...details].join('\n');
+
+  const lines = ['Foto-upload:     MISLUKT', `  ${probe.error}`, ...details];
+  if (probe.retry?.ok) {
+    lines.push(
+      '',
+      `  MAAR hercoderen werkt WEL (${probe.retry.filename}, ${probe.retry.type}, ${probe.retry.sizeKb} kB → foto ${probe.retry.photoId}).`,
+      '  Vinted weigert de foto omdat hij hem herkent als een van zijn eigen bestanden.',
+      '  Zet bij Werkwijze "Foto\'s hercoderen" aan; dan werkt het relisten.',
+    );
+  } else if (probe.retry) {
+    lines.push(
+      '',
+      `  Hercoderen helpt ook niet: ${probe.retry.error}`,
+      '  Het ligt dus niet aan herkenning van het bestand.',
+    );
+  }
+  return lines.join('\n');
 }
 
 /** Whether our photo upload matches the one the site itself makes. */

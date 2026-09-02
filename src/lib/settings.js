@@ -43,6 +43,13 @@ export const DEFAULT_SETTINGS = {
    */
   userId: '',
 
+  /**
+   * Re-encode each photo before uploading. Same picture, different bytes.
+   * Needed when Vinted refuses a photo because it recognises it as one of its
+   * own files; harmless otherwise, at the cost of one re-encode per photo.
+   */
+  reencodePhotos: false,
+
   /** Simulate everything (fetch + build payload) without creating or deleting. */
   dryRun: false,
 

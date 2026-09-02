@@ -16,6 +16,7 @@ export function createMockVinted({ items } = {}) {
   const state = {
     items: new Map((items ?? defaultItems()).map((item) => [String(item.id), item])),
     photoSeq: 500,
+    uploadedTypes: [],
     createdSeq: 900,
     created: [],
     deleted: [],
@@ -106,9 +107,20 @@ export function createMockVinted({ items } = {}) {
     }
 
     if (path === '/api/v2/photos' && req.method === 'POST') {
-      await drain(req);
+      const raw = await readRawBody(req);
       if (api.failPhotoUpload) return json(api.failPhotoUpload, 422);
+
+      // Stand-in for Vinted recognising one of its own files. It has to key on
+      // the exact bytes it served, not on the format: a re-encoded PNG is
+      // still a PNG, so a signature check would reject the copy too and the
+      // test would prove nothing.
+      const isOriginal = raw.includes(ONE_PIXEL_PNG);
+      if (api.rejectKnownImage && isOriginal) {
+        return json({ message: 'Foutmelding bij uploaden foto', message_code: 'error_uploading_photo' }, 400);
+      }
+
       state.photoSeq += 1;
+      state.uploadedTypes.push(isOriginal ? 'origineel' : 'hergecodeerd');
       return json({ id: state.photoSeq, orientation: 0 });
     }
 
@@ -140,6 +152,8 @@ export function createMockVinted({ items } = {}) {
     failCreate: false,
     /** Set to an error body to make the photo upload fail. */
     failPhotoUpload: null,
+    /** Refuse the untouched image, the way a duplicate check would. */
+    rejectKnownImage: false,
     listen: (port) => new Promise((resolve) => server.listen(port, '127.0.0.1', resolve)),
     close: () => new Promise((resolve) => server.close(resolve)),
   };
@@ -191,6 +205,15 @@ function defaultItems() {
       photos: [{ id: 4, full_size_url: 'http://www.vinted.nl/photo/4.png' }],
     },
   ];
+}
+
+function readRawBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
 }
 
 function readBody(req) {

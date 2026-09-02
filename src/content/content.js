@@ -23,6 +23,7 @@
     { recordObserved, listObserved },
     { parseMemberIdFromPath, resolveUserId },
     { uuid },
+    { reencodeImage, renameForType },
   ] = await Promise.all([
     import(base('src/lib/api.js')),
     import(base('src/lib/relist.js')),
@@ -33,6 +34,7 @@
     import(base('src/lib/observed.js')),
     import(base('src/lib/user-id.js')),
     import(base('src/lib/uuid.js')),
+    import(base('src/lib/image.js')),
   ]);
 
   /** @type {AbortController|null} */
@@ -170,8 +172,30 @@
         const result = await api.uploadPhoto(blob, { tempUuid: uuid(), filename });
         return { ok: true, photoId: result.id, ...shared };
       } catch (error) {
-        return { ok: false, error: error.message, ...shared };
+        // If Vinted refuses the file because it recognises one of its own,
+        // a re-encoded copy — same picture, different bytes — goes through.
+        // Trying both in one run settles that without guessing.
+        const retry = await probeReencoded(api, blob, filename);
+        return { ok: false, error: error.message, retry, ...shared };
       }
+    } catch (error) {
+      return { ok: false, error: error.message };
+    }
+  }
+
+  /** Second attempt with the same picture re-encoded, to test that theory. */
+  async function probeReencoded(api, blob, filename) {
+    try {
+      const { blob: encoded, extension } = await reencodeImage(blob);
+      const name = renameForType(filename, extension);
+      const result = await api.uploadPhoto(encoded, { tempUuid: uuid(), filename: name });
+      return {
+        ok: true,
+        photoId: result.id,
+        filename: name,
+        type: encoded.type,
+        sizeKb: Math.round(encoded.size / 1024),
+      };
     } catch (error) {
       return { ok: false, error: error.message };
     }
@@ -235,7 +259,9 @@
       const results = await relistBatch(api, itemIds, {
         settings,
         signal: activeRun.signal,
-        hooks: { saveBackup },
+        // Canvas lives in the page context, so the engine gets it injected
+        // rather than importing browser-only code itself.
+        hooks: { saveBackup, reencodeImage },
         onProgress: (update) => send(MSG.PROGRESS, { kind: 'step', ...update }),
         onItemDone: (result) => send(MSG.PROGRESS, { kind: 'item-done', result }),
       });

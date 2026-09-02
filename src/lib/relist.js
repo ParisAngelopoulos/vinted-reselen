@@ -15,6 +15,7 @@ import {
 } from './item-mapper.js';
 import { jitteredDelayMs, sleep } from './timing.js';
 import { uuid } from './uuid.js';
+import { renameForType } from './image.js';
 
 export const STEP = {
   FETCH: 'fetch',
@@ -96,12 +97,17 @@ export async function relistItem(api, itemId, options = {}) {
     report(STEP.PHOTOS, `Foto ${index + 1}/${item.photos.length} overzetten…`, {
       progress: index / item.photos.length,
     });
-    const blob = await api.downloadPhoto(photo.url, { signal });
-    const result = await api.uploadPhoto(blob, {
-      tempUuid,
-      filename: filenameFor(index, photo.url, blob),
-      signal,
-    });
+    const original = await api.downloadPhoto(photo.url, { signal });
+    let blob = original;
+    let filename = filenameFor(index, photo.url, blob);
+
+    if (settings.reencodePhotos && hooks.reencodeImage) {
+      const { blob: encoded, extension } = await hooks.reencodeImage(original);
+      blob = encoded;
+      filename = renameForType(filename, extension);
+    }
+
+    const result = await api.uploadPhoto(blob, { tempUuid, filename, signal });
     uploaded.push({ id: result.id, orientation: photo.orientation ?? 0 });
   }
 

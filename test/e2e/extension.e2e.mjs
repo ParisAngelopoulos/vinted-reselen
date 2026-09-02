@@ -372,6 +372,100 @@ check('testmodus staat op de knop, niet alleen in een melding', async ({ context
   await vinted.close();
 });
 
+check('een geweigerd bestand wordt herkend als duplicaatcontrole', async ({
+  context,
+  extensionId,
+  mock,
+}) => {
+  const vinted = await context.newPage();
+  await vinted.goto('http://www.vinted.nl/member/1');
+
+  // The untouched image is refused, a re-encoded copy of the same picture is
+  // accepted — exactly the situation the retry is meant to identify.
+  mock.rejectKnownImage = true;
+
+  const page = await context.newPage();
+  await page.goto(`chrome-extension://${extensionId}/src/options/options.html`);
+  await page.click('#run-diagnose');
+  await page.waitForFunction(
+    () => !document.getElementById('diagnose-output').textContent.startsWith('Bezig'),
+    { timeout: 30_000 },
+  );
+
+  const output = await page.textContent('#diagnose-output');
+  assert.match(output, /Foto-upload:\s+MISLUKT/);
+  assert.match(output, /MAAR hercoderen werkt WEL/);
+  assert.match(output, /herkent als een van zijn eigen bestanden/);
+  assert.match(output, /Foto's hercoderen" aan/);
+
+  mock.rejectKnownImage = false;
+  await page.close();
+  await vinted.close();
+});
+
+check('met hercoderen aan komt de relist er wél doorheen', async ({
+  context,
+  extensionId,
+  mock,
+}) => {
+  const vinted = await context.newPage();
+  await vinted.goto('http://www.vinted.nl/member/1');
+
+  const popup = await context.newPage();
+  popup.on('dialog', (dialog) => dialog.accept());
+  await popup.goto(`chrome-extension://${extensionId}/src/popup/popup.html`);
+  await popup.waitForSelector('.item');
+
+  await popup.evaluate(() =>
+    chrome.storage.local.set({
+      settings: {
+        order: 'create-first',
+        delayBetweenItemsSec: 0,
+        jitterSec: 0,
+        delayBetweenCallsMs: 0,
+        maxItemsPerRun: 10,
+        priceMode: 'keep',
+        minPrice: 1,
+        dryRun: false,
+        skipReserved: true,
+        reencodePhotos: true,
+      },
+      runState: null,
+    }),
+  );
+  await popup.reload();
+  await popup.waitForSelector('.item');
+
+  mock.rejectKnownImage = true;
+  mock.state.uploadedTypes = [];
+  // This run deletes the item it relists; later checks need the wardrobe back.
+  const wardrobeBefore = new Map(mock.state.items);
+
+  await popup.check('.item:nth-child(1) input[type=checkbox]');
+  await popup.click('#start');
+  await until(
+    async () => {
+      const state = await popup.evaluate(() => chrome.storage.local.get('runState'));
+      return state.runState && state.runState.active === false && state.runState.done > 0
+        ? state.runState
+        : null;
+    },
+    { label: 'de sessie werd niet afgerond' },
+  );
+
+  const summary = await popup.textContent('#current-message');
+  assert.match(summary, /1 opnieuw geplaatst/, 'hercoderen hoort de upload door de weigering te krijgen');
+  assert.ok(
+    mock.state.uploadedTypes.every((kind) => kind === 'hergecodeerd'),
+    `er is toch een origineel bestand verstuurd: ${mock.state.uploadedTypes.join(', ')}`,
+  );
+
+  mock.rejectKnownImage = false;
+  mock.state.items = wardrobeBefore;
+  await popup.close();
+  await vinted.close();
+});
+
 check('testmodus wijzigt niets', async ({ context, extensionId, mock }) => {
   const vinted = await context.newPage();
   await vinted.goto('http://www.vinted.nl/member/1');
