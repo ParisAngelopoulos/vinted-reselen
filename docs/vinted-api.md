@@ -14,13 +14,14 @@ Alles staat in [`src/lib/api.js`](../src/lib/api.js).
 | Mijn advertenties | `GET /api/v2/wardrobe/{userId}/items?order=&page=&per_page=` | `GET /api/v2/users/{userId}/items?...` |
 | Itemdetails | `GET /api/v2/item_upload/items/{id}` | `GET /api/v2/items/{id}` |
 
-### Het gebruikers-id komt niet van de API
+### Het gebruikers-id komt uit de pagina
 
-`GET /api/v2/users/current` en `GET /api/v2/user` zijn buiten gebruik: de site roept
-ze niet meer aan en ze antwoorden met een beveiligingspagina in plaats van JSON. Ze
-staan nog wel in de verbindingstest, puur als informatie.
+`GET /api/v2/users/current` werkt wel degelijk, maar alleen mét de Accept-header; zonder
+die header serveert Rails de HTML-pagina en lijkt het endpoint dood. Het id wordt
+desondanks uit de pagina gelezen: dat is één netwerkverzoek minder en het staat gewoon in
+de URL van je profiel.
 
-Het id wordt in plaats daarvan bepaald uit de pagina zelf, in deze volgorde
+De volgorde
 ([`src/lib/user-id.js`](../src/lib/user-id.js)):
 
 1. handmatig ingevuld bij de instellingen;
@@ -91,8 +92,27 @@ De extensie stuurt exact wat de Vinted-webapp zelf ook stuurt, niet meer:
 | `X-Anon-Id` | de `anon_id`-cookie | De site stuurt deze bij elke API-aanroep mee |
 
 De opname bij **Waargenomen endpoints** noteert ook de *namen* van de headers die de site
-zelf meestuurt (nooit de waarden). Dat is de snelste manier om te zien of de extensie
-iets mist.
+zelf meestuurt. Dat is de snelste manier om te zien of de extensie iets mist.
+
+### Het CSRF-token wordt afgekeken van de site
+
+Zonder `X-CSRF-Token` weigert Vinted elke schrijfactie (`403`, `"Accès refusé"`) terwijl
+alle leesacties gewoon werken — een asymmetrie die zich voordoet als "hij haalt mijn
+advertenties op maar plaatst niets terug".
+
+Het token staat niet in een cookie en niet in een meta-tag. Waar het huidige front-end het
+bewaart doet er ook niet toe: `src/content/api-recorder.js` draait in de pagina-context en
+leest de waarde af van de verzoeken die de site zelf doet. Dat is per definitie het juiste
+token, ongeacht waar Vinted het vandaan haalt.
+
+Dit is de enige header*waarde* die wordt vastgelegd; van alle andere worden alleen de
+namen bewaard. Het token gaat naar `chrome.storage.session` van de service worker: alleen
+in het geheugen, nooit naar schijf, weg zodra de browser sluit. Het verlaat het apparaat
+niet en wordt alleen gebruikt voor verzoeken die de ingelogde gebruiker zelf ook met de
+hand kan doen.
+
+Gevolg voor het gebruik: de extensie heeft één paginalading op Vinted nodig voordat
+schrijfacties werken. De verbindingstest meldt of er een token beschikbaar is.
 
 Een extra header die de echte site *niet* stuurt (zoals `X-Requested-With`) laat het
 verzoek juist opvallen bij de bot-bescherming en kan een `403` opleveren terwijl er niets

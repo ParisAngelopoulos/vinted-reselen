@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Vinted Relister",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Relist je eigen Vinted-advertenties: item opnieuw plaatsen met dezelfde gegevens en foto's, en de oude verwijderen.",
   "minimum_chrome_version": "116",
   "permissions": [

@@ -69,12 +69,14 @@ export class VintedApi {
     origin,
     csrfToken = null,
     anonId = null,
+    locale = null,
     minGapMs = 900,
     fetchImpl = globalThis.fetch.bind(globalThis),
   } = {}) {
     this.origin = (origin || globalThis.location?.origin || '').replace(/\/$/, '');
     this.csrfToken = csrfToken;
     this.anonId = anonId;
+    this.locale = locale;
     this.fetchImpl = fetchImpl;
     this.throttle = new Throttle(minGapMs);
     this.maxRetries = 3;
@@ -116,6 +118,14 @@ export class VintedApi {
     }
   }
 
+  /** The language the site itself is running in; it sends this as `locale`. */
+  static readLocale(doc = globalThis.document) {
+    const lang = doc?.documentElement?.lang;
+    if (lang) return lang.split('-')[0].toLowerCase();
+    const cookie = /(?:^|;\s*)(?:user|anonymous)-iso-locale=([^;]+)/i.exec(doc?.cookie || '');
+    return cookie ? decodeURIComponent(cookie[1]).split('-')[0].toLowerCase() : null;
+  }
+
   /** Cookie names present, never values — for the connection report. */
   static cookieNames(cookieString = globalThis.document?.cookie) {
     return (cookieString || '')
@@ -145,6 +155,7 @@ export class VintedApi {
       origin: globalThis.location?.origin,
       csrfToken: VintedApi.readCsrfToken(),
       anonId: VintedApi.readAnonId(),
+      locale: VintedApi.readLocale(),
       ...overrides,
     });
   }
@@ -167,6 +178,7 @@ export class VintedApi {
     const headers = { Accept: ACCEPT_JSON, ...extra };
     if (this.csrfToken) headers['X-CSRF-Token'] = this.csrfToken;
     if (this.anonId) headers['X-Anon-Id'] = this.anonId;
+    if (this.locale) headers.Locale = this.locale;
     return headers;
   }
 
@@ -259,10 +271,10 @@ export class VintedApi {
   // ---------------------------------------------------------------- reads --
 
   /**
-   * Kept only for the connection test. Vinted retired these routes: the site
-   * does not call them and they answer with a protection page, so the account
-   * id is resolved from the page instead (src/lib/user-id.js). Calling this on
-   * the normal path would spend a blocked request for nothing.
+   * Used by the connection test. These routes do work, but only with the
+   * Accept header — without it Rails serves the HTML page and they look dead.
+   * The normal path still resolves the account id from the page itself
+   * (src/lib/user-id.js), which needs no request at all.
    */
   async getCurrentUser({ signal } = {}) {
     const data = await this.requestFirst(['/api/v2/users/current', '/api/v2/user'], {
@@ -312,6 +324,7 @@ export class VintedApi {
     const report = {
       origin: this.origin,
       hasCsrfToken: Boolean(this.csrfToken),
+      locale: this.locale,
       hasAnonId: Boolean(this.anonId),
       hasCookies: Boolean(globalThis.document?.cookie),
       cookieNames: VintedApi.cookieNames(),

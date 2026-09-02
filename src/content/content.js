@@ -47,9 +47,22 @@
     return '';
   }
 
+  /** The token the site was seen using, if the recorder has caught one yet. */
+  async function capturedCsrfToken() {
+    try {
+      const response = await chrome.runtime.sendMessage({ type: MSG.GET_CSRF });
+      return response?.ok ? response.data?.token ?? null : null;
+    } catch {
+      return null;
+    }
+  }
+
   async function makeApi() {
     const settings = await loadSettings();
     const api = VintedApi.fromPage({ minGapMs: settings.delayBetweenCallsMs ?? 900 });
+    // Reading the token off the page only works when the front-end puts it
+    // there. What the site actually sends is authoritative, so it wins.
+    api.csrfToken = (await capturedCsrfToken()) ?? api.csrfToken;
     if (!api.origin) throw new Error('Kon de Vinted-origin niet bepalen.');
     return { api, settings };
   }
@@ -161,14 +174,25 @@
   const idFromPath = parseMemberIdFromPath(location.pathname);
   if (idFromPath) chrome.storage.local.set({ knownUserId: idFromPath });
 
-  // The recorder runs in the page's own context and cannot reach chrome.*;
-  // relay what it sees into extension storage. Its messages carry only a
-  // method, a path, query parameter names and a status code.
+  // The recorder runs in the page's own context and cannot reach chrome.*, so
+  // relay what it sees. Endpoint records carry only a method, a path, query
+  // parameter names and a status code — no values. The one exception is the
+  // CSRF token, which is deliberately captured because writes are refused
+  // without it; it goes to the worker's memory-only session storage and never
+  // leaves this machine.
   const RECORDER_CHANNEL = 'vinted-relister-recorder';
   window.addEventListener('message', (event) => {
     if (event.source !== window) return;
     const message = event.data;
     if (!message || message.source !== RECORDER_CHANNEL || message.ready) return;
+
+    if (message.csrfToken) {
+      chrome.runtime
+        .sendMessage({ type: MSG.SET_CSRF, payload: { token: message.csrfToken } })
+        .catch(() => {});
+      return;
+    }
+
     recordObserved({
       entry: message.entry,
       status: message.status,

@@ -28,6 +28,7 @@
    */
   const entries = new Map();
   let listenerReady = false;
+  let lastToken = null;
 
   window.addEventListener('message', (event) => {
     if (event.source !== window) return;
@@ -35,6 +36,9 @@
     if (!message || message.source !== CHANNEL || !message.ready) return;
     listenerReady = true;
     for (const [entry, record] of entries) publish(entry, record);
+    // The token is usually seen on the site's very first call, long before the
+    // listener exists, so it has to be replayed here as well.
+    if (lastToken) publishCsrf(lastToken);
   });
 
   function publish(entry, record) {
@@ -60,6 +64,42 @@
       return [...new Set(names.map((name) => String(name).toLowerCase()))].sort();
     } catch {
       return [];
+    }
+  }
+
+  /**
+   * The site sends x-csrf-token on every API call, and writes are refused
+   * without it. It is not in a cookie or a meta tag, so rather than guessing
+   * where the front-end keeps it, read the value off the site's own requests.
+   *
+   * This is the one header value that gets captured — everything else is
+   * recorded by name only. It never leaves the browser: it goes to the
+   * extension's in-memory session storage and is used only to make the same
+   * requests the signed-in user could make by hand.
+   */
+  function publishCsrf(token) {
+    window.postMessage({ source: CHANNEL, csrfToken: token }, location.origin);
+  }
+
+  function captureCsrf(name, value) {
+    if (String(name).toLowerCase() !== 'x-csrf-token') return;
+    if (!value || value === lastToken) return;
+    lastToken = value;
+    if (listenerReady) publishCsrf(lastToken);
+  }
+
+  function captureCsrfFrom(source) {
+    try {
+      if (!source) return;
+      if (source instanceof Headers) {
+        for (const [name, value] of source.entries()) captureCsrf(name, value);
+      } else if (Array.isArray(source)) {
+        for (const [name, value] of source) captureCsrf(name, value);
+      } else {
+        for (const [name, value] of Object.entries(source)) captureCsrf(name, value);
+      }
+    } catch {
+      /* never let this break the page */
     }
   }
 
@@ -89,9 +129,9 @@
     window.fetch = function fetch(input, init) {
       const url = typeof input === 'string' ? input : input?.url;
       const method = init?.method || (typeof input === 'object' ? input?.method : null) || 'GET';
-      const sent = headerNames(
-        init?.headers ?? (typeof input === 'object' ? input?.headers : null),
-      );
+      const rawHeaders = init?.headers ?? (typeof input === 'object' ? input?.headers : null);
+      const sent = headerNames(rawHeaders);
+      captureCsrfFrom(rawHeaders);
       const result = originalFetch.apply(this, arguments);
       // Observe the outcome without altering the promise the caller receives.
       Promise.resolve(result).then(
@@ -114,8 +154,9 @@
     return originalOpen.apply(this, arguments);
   };
 
-  XMLHttpRequest.prototype.setRequestHeader = function setRequestHeader(name) {
+  XMLHttpRequest.prototype.setRequestHeader = function setRequestHeader(name, value) {
     if (this[marker]) this[marker].headers.push(String(name).toLowerCase());
+    captureCsrf(name, value);
     return originalSetHeader.apply(this, arguments);
   };
 

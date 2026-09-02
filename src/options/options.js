@@ -89,7 +89,12 @@ function formatDiagnosis(report) {
     `Site:            ${report.origin}`,
     `Cookies:         ${report.hasCookies ? 'aanwezig' : 'GEEN — je bent niet ingelogd op deze site'}`,
     `anon_id-cookie:  ${report.hasAnonId ? 'aanwezig' : 'ontbreekt'}`,
-    `CSRF-token:      ${report.hasCsrfToken ? 'gevonden' : 'niet gevonden — schrijfacties worden hierdoor mogelijk geweigerd'}`,
+    `CSRF-token:      ${
+      report.hasCsrfToken
+        ? 'aanwezig'
+        : 'ONTBREEKT — open je Vinted-profiel en ververs de pagina, dan vangt de extensie het op'
+    }`,
+    `Locale:          ${report.locale || '(onbekend)'}`,
     `Cookies aanwezig: ${(report.cookieNames || []).join(', ') || '(geen)'}`,
     '',
   ];
@@ -117,8 +122,8 @@ function formatDiagnosis(report) {
     );
   } else if (report.resolvedUserId) {
     lines.push(
-      'De oude gebruikers-endpoints van Vinted zijn buiten gebruik; dat ze falen is ' +
-        'verwacht en geen probleem. Het id hierboven wordt van je profielpagina gelezen.',
+      'Het id hierboven wordt van je profielpagina gelezen, dus falende ' +
+        'gebruikers-endpoints hierboven houden de extensie niet tegen.',
     );
   } else if (report.checks.some((check) => check.blocked)) {
     // Every failing call came back as a web page: that is the site's

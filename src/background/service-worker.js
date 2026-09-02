@@ -175,6 +175,23 @@ async function diagnose() {
   return sendToTab(tab.id, MSG.DIAGNOSE);
 }
 
+/**
+ * The CSRF token the site was seen using. Kept here rather than in the content
+ * script because chrome.storage.session is only reachable from a trusted
+ * context, and this worker always is. Session storage is memory-only: the
+ * token is never written to disk and is gone when the browser closes.
+ */
+async function setCsrfToken(token) {
+  if (!token) return { stored: false };
+  await chrome.storage.session.set({ csrfToken: token });
+  return { stored: true };
+}
+
+async function getCsrfToken() {
+  const stored = await chrome.storage.session.get('csrfToken');
+  return { token: stored?.csrfToken ?? null };
+}
+
 // --------------------------------------------------------------- routing ---
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -182,6 +199,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     [MSG.GET_STATE]: () => getRunState(),
     [MSG.LIST_ITEMS]: () => listItems(message.payload),
     [MSG.DIAGNOSE]: () => diagnose(),
+    [MSG.SET_CSRF]: () => setCsrfToken(message.payload?.token),
+    [MSG.GET_CSRF]: () => getCsrfToken(),
     [MSG.START]: () => startRun(message.payload),
     [MSG.CANCEL]: () => cancelRun(),
   };

@@ -2,6 +2,8 @@
 export const MSG = {
   PING: 'relist:ping',
   HELLO: 'relist:hello',
+  SET_CSRF: 'relist:set-csrf',
+  GET_CSRF: 'relist:get-csrf',
   LIST_ITEMS: 'relist:list-items',
   DIAGNOSE: 'relist:diagnose',
   RECORD_ENDPOINT: 'relist:record-endpoint',

@@ -47,12 +47,14 @@ export function createMockVinted({ items } = {}) {
         // The real site sets this; the extension must echo it back as X-Anon-Id.
         'set-cookie': 'anon_id=test-anon-id; Path=/',
       });
+      // No csrf meta tag and no csrf cookie, as on the real site: the token is
+      // only visible in the requests the page itself makes.
       res.end(
-        '<!doctype html><html><head><meta name="csrf-token" content="test-csrf-token"></head>' +
+        '<!doctype html><html lang="nl"><head></head>' +
           '<body><h1>Mock Vinted</h1><script>' +
           // Stand-in for the site's own front-end traffic, which is what the
           // recorder is supposed to observe.
-          "fetch('/api/v2/feed?page=1&per_page=20');" +
+          "fetch('/api/v2/feed?page=1&per_page=20',{headers:{'x-csrf-token':'token-from-site','locale':'nl'}});" +
           "var x=new XMLHttpRequest();x.open('POST','/api/v2/tracking');x.send();" +
           '</script></body></html>',
       );
@@ -69,12 +71,11 @@ export function createMockVinted({ items } = {}) {
       return json({ ok: true });
     }
 
-    // Retired on the real site: no longer called by the front-end, and it
-    // answers with a protection page rather than JSON.
+    // Works on the real site, but only with the Accept header — the json()
+    // helper above enforces that, so a caller that forgets it still gets the
+    // HTML page here just like on vinted.nl.
     if (path === '/api/v2/users/current' || path === '/api/v2/user') {
-      res.writeHead(403, { 'content-type': 'text/html' });
-      res.end('<!doctype html><html><head><title>Vinted</title><style>*{box-sizing:border-box}</style></head><body>Access denied</body></html>');
-      return;
+      return json({ user: { id: 1, login: 'tester' } });
     }
 
     if (path === '/api/v2/wardrobe/1/items') {
@@ -89,6 +90,14 @@ export function createMockVinted({ items } = {}) {
       const item = state.items.get(uploadDetail[1]);
       if (!item) return json({ message: 'niet gevonden' }, 404);
       return json({ item });
+    }
+
+    // Vinted refuses writes without the CSRF token the site sends on every
+    // call, while reads go through fine. That asymmetry is what made the
+    // extension list items happily and then fail on upload.
+    if (req.method !== 'GET' && path.startsWith('/api/') && !req.headers['x-csrf-token']) {
+      await drain(req);
+      return json({ message: 'Accès refusé' }, 403);
     }
 
     if (path === '/api/v2/photos' && req.method === 'POST') {

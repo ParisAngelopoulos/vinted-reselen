@@ -127,9 +127,10 @@ check('API-verzoeken dragen de headers die de Vinted-site zelf ook stuurt', asyn
   );
   assert.equal(
     apiCall.headers['x-csrf-token'],
-    'test-csrf-token',
-    'het CSRF-token van de pagina hoort meegestuurd te worden',
+    'token-from-site',
+    'het token dat de site zelf gebruikt hoort overgenomen te worden',
   );
+  assert.equal(apiCall.headers.locale, 'nl', 'de site stuurt locale mee, dus wij ook');
   assert.equal(
     apiCall.headers['x-requested-with'],
     undefined,
@@ -157,14 +158,13 @@ check('de verbindingstest rapporteert per aanroep wat Vinted antwoordt', async (
 
   const output = await page.textContent('#diagnose-output');
   assert.match(output, /anon_id-cookie:\s+aanwezig/);
-  // The retired endpoints are expected to fail, and that must read as a
-  // blocked request rather than as a session problem.
-  assert.match(output, /✗ Ingelogde gebruiker: 403/);
-  assert.match(output, /geblokkeerd — Vinted stuurde een webpagina terug/);
-  assert.doesNotMatch(output, /Log opnieuw in/i);
+  assert.match(output, /CSRF-token:\s+aanwezig/, 'het afgevangen token hoort gemeld te worden');
+  assert.match(output, /Locale:\s+nl/);
+  assert.match(output, /✓ Ingelogde gebruiker: 200/);
+  assert.match(output, /✓ Eigen advertenties: 200/);
   // What actually decides whether the extension works: the resolved account id.
   assert.match(output, /Gebruikers-id: 1\b/);
-  assert.match(output, /buiten gebruik/);
+  assert.doesNotMatch(output, /Log opnieuw in/i);
 
   await page.close();
   await vinted.close();
