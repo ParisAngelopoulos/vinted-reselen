@@ -99,6 +99,15 @@ function formatUploadProbe(probe) {
   if (probe.reason) return `Foto-upload:     niet getest — ${probe.reason}.`;
 
   const lines = ['Foto-upload:     MISLUKT', `  ${probe.error}`, ...details];
+  if (probe.pageUrl && !/\/items\/new|\/item_upload|\/items\/\d+\/edit/.test(probe.pageUrl)) {
+    lines.push(
+      '',
+      `  Deze test draaide op ${probe.pageUrl}. De browser hangt die pagina als Referer`,
+      '  aan het verzoek en die header is vanuit script niet te zetten. Vinted doet deze',
+      '  upload zelf altijd vanaf de plaatsingspagina — probeer de test daar ook, met dat',
+      '  tabblad actief.',
+    );
+  }
   if (probe.retry?.ok) {
     lines.push(
       '',

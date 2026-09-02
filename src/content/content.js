@@ -160,6 +160,7 @@
       const filename = filenameFor(0, photo.url, blob);
       const size = await imageSize(blob);
       const shared = {
+        pageUrl: location.pathname,
         filename,
         type: blob.type || 'onbekend',
         sizeKb: Math.round((blob.size || 0) / 1024),
