@@ -165,6 +165,42 @@ check('de verbindingstest rapporteert per aanroep wat Vinted antwoordt', async (
   // What actually decides whether the extension works: the resolved account id.
   assert.match(output, /Gebruikers-id: 1\b/);
   assert.doesNotMatch(output, /Log opnieuw in/i);
+  // The connection test must exercise the step that actually breaks.
+  assert.match(output, /Foto-upload:\s+GELUKT/);
+
+  await page.close();
+  await vinted.close();
+});
+
+check('de verbindingstest meldt een mislukte foto-upload met reden', async ({
+  context,
+  extensionId,
+  mock,
+}) => {
+  const vinted = await context.newPage();
+  await vinted.goto('http://www.vinted.nl/member/1');
+
+  mock.failPhotoUpload = {
+    message: 'Foutmelding bij uploaden foto',
+    message_code: 'photo_invalid',
+    errors: [{ field: 'photo[file]', value: 'ongeldig formaat' }],
+  };
+
+  const page = await context.newPage();
+  await page.goto(`chrome-extension://${extensionId}/src/options/options.html`);
+  await page.click('#run-diagnose');
+  await page.waitForFunction(
+    () => !document.getElementById('diagnose-output').textContent.startsWith('Bezig'),
+    { timeout: 30_000 },
+  );
+
+  const output = await page.textContent('#diagnose-output');
+  assert.match(output, /Foto-upload:\s+MISLUKT/);
+  assert.match(output, /code: photo_invalid/, "Vinted's own field errors must reach the report");
+  assert.match(output, /velden: photo\[file\]: ongeldig formaat/);
+  assert.match(output, /verstuurd: .*image\/png/, 'what we sent has to be visible for comparison');
+
+  mock.failPhotoUpload = null;
 
   await page.close();
   await vinted.close();

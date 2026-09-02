@@ -83,6 +83,16 @@ document.getElementById('clear-backups').addEventListener('click', async () => {
   flash('Back-ups gewist.');
 });
 
+/** The result of actually uploading one photo — the step that breaks. */
+function formatUploadProbe(probe) {
+  if (!probe) return 'Foto-upload:     niet getest.';
+  if (probe.ok) {
+    return `Foto-upload:     GELUKT (${probe.filename}, ${probe.type}, ${probe.sizeKb} kB → foto ${probe.photoId})`;
+  }
+  if (probe.reason) return `Foto-upload:     niet getest — ${probe.reason}.`;
+  return ['Foto-upload:     MISLUKT', `  ${probe.error}`].join('\n');
+}
+
 /** Whether our photo upload matches the one the site itself makes. */
 function formatUploadShape(upload) {
   if (!upload) return 'Upload-vorm: onbekend.';
@@ -133,6 +143,8 @@ function formatDiagnosis(report) {
 
   lines.push('');
   lines.push(formatUploadShape(report.upload));
+  lines.push('');
+  lines.push(formatUploadProbe(report.uploadProbe));
   lines.push('');
   lines.push(
     report.resolvedUserId

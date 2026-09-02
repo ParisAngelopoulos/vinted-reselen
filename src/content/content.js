@@ -15,13 +15,14 @@
 
   const [
     { VintedApi, UPLOAD_FIELD_NAMES },
-    { relistBatch, summarise },
+    { relistBatch, summarise, filenameFor },
     { MSG },
     { loadSettings },
     { saveBackup },
     { normalizeItem },
     { recordObserved, listObserved },
     { parseMemberIdFromPath, resolveUserId },
+    { uuid },
   ] = await Promise.all([
     import(base('src/lib/api.js')),
     import(base('src/lib/relist.js')),
@@ -31,6 +32,7 @@
     import(base('src/lib/item-mapper.js')),
     import(base('src/lib/observed.js')),
     import(base('src/lib/user-id.js')),
+    import(base('src/lib/uuid.js')),
   ]);
 
   /** @type {AbortController|null} */
@@ -124,6 +126,37 @@
       extra: UPLOAD_FIELD_NAMES.filter((field) => !theirs.includes(field)),
       headers: row.headers ?? [],
     };
+  }
+
+  /**
+   * Actually try one photo upload, because that is the step that breaks and a
+   * connection test that only exercises reads reports "all green" while
+   * relisting fails. The photo goes to a temporary upload session: nothing is
+   * listed, nothing is deleted, and the session expires on its own.
+   */
+  async function probeUpload(api) {
+    try {
+      const user = await currentUserId(api);
+      const { items } = await api.listOwnItems(user.id, { page: 1, perPage: 1 });
+      if (!items.length) return { ok: false, reason: 'geen advertentie om mee te testen' };
+
+      const item = normalizeItem(await api.getItem(items[0].id));
+      const photo = item.photos[0];
+      if (!photo) return { ok: false, reason: 'die advertentie heeft geen foto' };
+
+      const blob = await api.downloadPhoto(photo.url);
+      const filename = filenameFor(0, photo.url, blob);
+      const result = await api.uploadPhoto(blob, { tempUuid: uuid(), filename });
+      return {
+        ok: true,
+        photoId: result.id,
+        filename,
+        type: blob.type || 'onbekend',
+        sizeKb: Math.round((blob.size || 0) / 1024),
+      };
+    } catch (error) {
+      return { ok: false, error: error.message };
+    }
   }
 
   async function handleListItems({ page = 1, perPage = 20 } = {}) {
@@ -252,6 +285,7 @@
           report.userIdSource = error.message;
         }
         report.upload = await compareUploadShape();
+        report.uploadProbe = await probeUpload(api);
         return report;
       },
       [MSG.START]: () => handleStart(message.payload),

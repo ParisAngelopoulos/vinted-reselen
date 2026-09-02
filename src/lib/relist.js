@@ -35,11 +35,13 @@ const EXTENSION_FOR_TYPE = {
 };
 
 /**
+ * Exported so the connection test can name its probe upload the same way.
+ *
  * Name the upload after what the file actually is. Vinted's image URLs do not
  * always carry an extension, and guessing ".jpg" for a WebP gives the upload a
  * filename that contradicts its content type.
  */
-function filenameFor(index, url, blob) {
+export function filenameFor(index, url, blob) {
   const fromType = EXTENSION_FOR_TYPE[String(blob?.type || '').toLowerCase()];
   const fromUrl = /\.(jpe?g|png|webp|gif|avif)(\?|$)/i.exec(url || '')?.[1]?.toLowerCase();
   const ext = fromType || (fromUrl === 'jpeg' ? 'jpg' : fromUrl) || 'jpg';

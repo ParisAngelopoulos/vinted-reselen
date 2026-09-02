@@ -84,9 +84,11 @@ wordt er met opzet niets aangemaakt of verwijderd.
 
 ## Als er iets misgaat
 
-Begin bij **tandwiel → Verbinding testen**. Die loopt de leesroutes van Vinted stuk voor
-stuk langs en laat per aanroep zien wat er terugkomt, plus of je cookies, het CSRF-token
-en de `anon_id` aanwezig zijn. Zo hoef je niet te gokken welke stap faalt.
+Begin bij **tandwiel → Verbinding testen**. Die loopt de routes van Vinted stuk voor stuk
+langs en laat per aanroep zien wat er terugkomt, plus of je cookies, het CSRF-token en de
+`anon_id` aanwezig zijn. Hij zet ook één bestaande foto over naar een tijdelijke
+uploadsessie — dat is de stap die het vaakst misgaat, en een test die alleen leest meldt
+"alles groen" terwijl het relisten faalt. Er wordt niets geplaatst en niets verwijderd.
 
 ![Het diagnoserapport](docs/diagnose.png)
 

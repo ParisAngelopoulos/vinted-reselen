@@ -107,6 +107,7 @@ export function createMockVinted({ items } = {}) {
 
     if (path === '/api/v2/photos' && req.method === 'POST') {
       await drain(req);
+      if (api.failPhotoUpload) return json(api.failPhotoUpload, 422);
       state.photoSeq += 1;
       return json({ id: state.photoSeq, orientation: 0 });
     }
@@ -137,6 +138,8 @@ export function createMockVinted({ items } = {}) {
     calls,
     /** Flipped by a test to make item creation fail. */
     failCreate: false,
+    /** Set to an error body to make the photo upload fail. */
+    failPhotoUpload: null,
     listen: (port) => new Promise((resolve) => server.listen(port, '127.0.0.1', resolve)),
     close: () => new Promise((resolve) => server.close(resolve)),
   };
