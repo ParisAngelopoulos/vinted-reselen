@@ -111,10 +111,13 @@ function formatUploadShape(upload) {
       `  Wij sturen nu: ${upload.ours.join(', ')}`,
     ].join('\n');
   }
-  const typeNote =
-    upload.theirType && upload.theirType !== 'item_photo'
-      ? `\n  LET OP: Vinted stuurt photo[type]=${upload.theirType}, wij sturen item_photo.`
-      : '';
+  // Saying nothing when the value was never captured reads as "it matches",
+  // which is not something this report knows.
+  const typeNote = upload.theirType
+    ? upload.theirType === 'item_photo'
+      ? '\n  photo[type]: Vinted stuurt item_photo, net als wij.'
+      : `\n  LET OP: Vinted stuurt photo[type]=${upload.theirType}, wij sturen item_photo.`
+    : '\n  photo[type]: waarde niet vastgelegd — neem de upload opnieuw op om die te vergelijken.';
 
   if (!upload.missing.length && !upload.extra.length && upload.sameOrder !== false) {
     return `Upload-vorm:     komt overeen (${upload.ours.join(', ')})${typeNote}`;
@@ -142,6 +145,7 @@ function formatUploadShape(upload) {
 function formatDiagnosis(report) {
   const lines = [
     `Site:            ${report.origin}`,
+    `Test gedraaid op: ${report.pageUrl || 'onbekend'}`,
     `Cookies:         ${report.hasCookies ? 'aanwezig' : 'GEEN — je bent niet ingelogd op deze site'}`,
     `anon_id-cookie:  ${report.hasAnonId ? 'aanwezig' : 'ontbreekt'}`,
     `CSRF-token:      ${

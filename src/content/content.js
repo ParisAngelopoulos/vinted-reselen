@@ -318,6 +318,9 @@
           report.resolvedUserId = null;
           report.userIdSource = error.message;
         }
+        // Which page the upload ran from decides the Referer the browser
+        // attaches — script cannot set that header, so the page matters.
+        report.pageUrl = location.pathname;
         report.upload = await compareUploadShape();
         report.uploadProbe = await probeUpload(api);
         return report;
