@@ -197,6 +197,7 @@
       entry: message.entry,
       status: message.status,
       headers: message.headers,
+      fields: message.fields,
     }).catch(() => {});
   });
   // Ask the recorder to replay whatever it saw before this listener existed.

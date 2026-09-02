@@ -201,6 +201,8 @@ check('een relist maakt de nieuwe advertentie aan en verwijdert de oude', async 
     }),
   );
 
+  const photoUploadsBefore = mock.calls.filter((c) => c.path === '/api/v2/photos').length;
+
   await popup.check('.item:nth-child(1) input[type=checkbox]');
   await popup.click('#start');
 
@@ -237,8 +239,10 @@ check('een relist maakt de nieuwe advertentie aan en verwijdert de oude', async 
     .map((c) => `${c.method} ${c.path}`);
   assert.deepEqual(order, ['POST /api/v2/item_upload/items', 'DELETE /api/v2/items/101']);
 
-  // Photos were downloaded from the original and re-uploaded.
-  const photoUploads = mock.calls.filter((c) => c.path === '/api/v2/photos').length;
+  // Photos were downloaded from the original and re-uploaded. The mock page
+  // uploads one of its own on every load, so count only what this run added.
+  const photoUploads =
+    mock.calls.filter((c) => c.path === '/api/v2/photos').length - photoUploadsBefore;
   assert.equal(photoUploads, 2);
 
   const backups = await popup.evaluate(() => chrome.storage.local.get('backups'));
@@ -398,8 +402,10 @@ check('de recorder vangt op wat de site zelf aanroept, ook via XHR', async ({
   const output = await page.textContent('#observed-output');
   assert.match(output, /GET \/api\/v2\/feed\?page&per_page/, 'fetch-verkeer hoort opgenomen te worden');
   assert.match(output, /POST \/api\/v2\/tracking/, 'XHR-verkeer hoort ook opgenomen te worden');
-  assert.doesNotMatch(output, /test-csrf-token|anon_id=/, 'er mag geen token of cookie in belanden');
+  assert.doesNotMatch(output, /token-from-site|anon_id=/, 'er mag geen token of cookie in belanden');
   assert.doesNotMatch(output, /per_page=20/, 'alleen parameternamen, geen waarden');
+  // The field names of a write are what the extension has to match.
+  assert.match(output, /velden:\s+photo\[type\], photo\[file\] \(bestand\)/);
 
   await page.close();
   await vinted.close();

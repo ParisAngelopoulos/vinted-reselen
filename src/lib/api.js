@@ -15,9 +15,12 @@ import { Throttle, backoffMs, sleep } from './timing.js';
 
 export class VintedApiError extends Error {
   constructor(message, { status = 0, path = '', method = 'GET', body = null } = {}) {
-    // Name the call in the message itself: this is the only thing the user
-    // sees in the popup, and "which request failed" is the first question.
-    super(path ? `${message} (${method} ${path})` : message);
+    // Name the call and the status in the message itself: this is the only
+    // thing the user sees in the popup. Vinted's own error text ("Foutmelding
+    // bij uploaden foto") says nothing about whether it was refused, rejected
+    // or rate-limited, and that distinction decides what to do next.
+    const context = [status || null, method, path].filter(Boolean).join(' ');
+    super(context ? `${message} [${context}]` : message);
     this.name = 'VintedApiError';
     this.status = status;
     this.path = path;

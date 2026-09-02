@@ -60,6 +60,23 @@ const fastSettings = {
   keepBackups: false,
 };
 
+test('the upload filename follows the real file type, not the URL', async () => {
+  // A WebP uploaded as "photo-1.jpg" gives the file a name that contradicts its
+  // content type; Vinted image URLs do not always carry an extension.
+  const filenames = [];
+  const api = fakeApi({
+    async downloadPhoto() {
+      return { size: 100, type: 'image/webp' };
+    },
+    async uploadPhoto(_blob, { filename }) {
+      filenames.push(filename);
+      return { id: 1, orientation: 0 };
+    },
+  });
+  await relistItem(api, 42, { settings: fastSettings });
+  assert.deepEqual(filenames, ['photo-1.webp', 'photo-2.webp']);
+});
+
 test('relistItem copies photos, creates the new listing, then deletes the old one', async () => {
   const api = fakeApi();
   const result = await relistItem(api, 42, { settings: { ...fastSettings, order: 'create-first' } });

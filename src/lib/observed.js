@@ -23,7 +23,7 @@ export async function listObserved() {
  */
 let queue = Promise.resolve();
 
-export function recordObserved({ entry, status, headers }) {
+export function recordObserved({ entry, status, headers, fields }) {
   if (!entry) return Promise.resolve();
 
   const result = queue.then(async () => {
@@ -33,12 +33,14 @@ export function recordObserved({ entry, status, headers }) {
       existing.count += 1;
       existing.status = status ?? existing.status;
       existing.headers = headers?.length ? headers : existing.headers;
+      existing.fields = fields?.length ? fields : existing.fields;
       existing.lastSeen = Date.now();
     } else {
       observed.push({
         entry,
         status: status ?? 0,
         headers: headers ?? [],
+        fields: fields ?? [],
         count: 1,
         lastSeen: Date.now(),
       });
@@ -68,7 +70,11 @@ export function formatObserved(observed) {
       const line = `${String(row.status).padStart(3)}  ${row.entry}`;
       // Which headers the site sends is what the extension has to match; the
       // values are deliberately never recorded.
-      return row.headers?.length ? [line, `     headers: ${row.headers.join(', ')}`] : [line];
+      const lines = [line];
+      if (row.headers?.length) lines.push(`     headers: ${row.headers.join(', ')}`);
+      // Field names define the shape of a write; the values are never recorded.
+      if (row.fields?.length) lines.push(`     velden:  ${row.fields.join(', ')}`);
+      return lines;
     })
     .join('\n');
 }

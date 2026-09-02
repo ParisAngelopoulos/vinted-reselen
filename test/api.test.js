@@ -265,3 +265,16 @@ test('cookieNames reports names only, never values', () => {
   assert.deepEqual(names, ['_vinted_session', 'anon_id']);
   assert.ok(!names.join(' ').includes('secret'), 'a value must never reach the report');
 });
+
+test('an error names the status, not just the endpoint', () => {
+  const error = new VintedApiError('Foutmelding bij uploaden foto', {
+    status: 422,
+    path: '/api/v2/photos',
+    method: 'POST',
+  });
+  assert.match(
+    error.message,
+    /\[422 POST \/api\/v2\/photos\]/,
+    "Vinted's own wording says nothing about refused vs rejected vs rate-limited",
+  );
+});

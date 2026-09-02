@@ -105,6 +105,10 @@ bewaart doet er ook niet toe: `src/content/api-recorder.js` draait in de pagina-
 leest de waarde af van de verzoeken die de site zelf doet. Dat is per definitie het juiste
 token, ongeacht waar Vinted het vandaan haalt.
 
+Naast de headernamen legt de opname ook de *veldnamen* van een schrijfactie vast
+(`photo[type]`, `photo[file] (bestand)`, …). Een multipart-upload wordt gedefinieerd door
+zijn veldnamen; de waarden en de bestandsinhoud worden nooit bewaard.
+
 Dit is de enige header*waarde* die wordt vastgelegd; van alle andere worden alleen de
 namen bewaard. Het token gaat naar `chrome.storage.session` van de service worker: alleen
 in het geheugen, nooit naar schijf, weg zodra de browser sluit. Het verlaat het apparaat

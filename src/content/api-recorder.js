@@ -43,7 +43,13 @@
 
   function publish(entry, record) {
     window.postMessage(
-      { source: CHANNEL, entry, status: record.status, headers: record.headers },
+      {
+        source: CHANNEL,
+        entry,
+        status: record.status,
+        headers: record.headers,
+        fields: record.fields,
+      },
       location.origin,
     );
   }
@@ -103,7 +109,33 @@
     }
   }
 
-  function report(method, rawUrl, status, headers) {
+  /**
+   * Field *names* of a request body, never values and never file contents.
+   * A multipart upload is defined by its field names — that is exactly what
+   * the extension has to match, and none of it is personal data.
+   */
+  function bodyFields(body) {
+    try {
+      if (!body) return [];
+      if (typeof FormData !== 'undefined' && body instanceof FormData) {
+        const names = [];
+        for (const [name, value] of body.entries()) {
+          const isFile = typeof value === 'object' && value !== null && 'size' in value;
+          names.push(isFile ? `${name} (bestand)` : name);
+        }
+        return [...new Set(names)];
+      }
+      if (typeof body === 'string' && body.trim().startsWith('{')) {
+        const parsed = JSON.parse(body);
+        return Object.keys(parsed).sort();
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  }
+
+  function report(method, rawUrl, status, headers, fields) {
     try {
       if (!rawUrl) return;
       const url = new URL(rawUrl, location.href);
@@ -114,7 +146,7 @@
       const query = keys.length ? `?${keys.join('&')}` : '';
       const entry = `${String(method || 'GET').toUpperCase()} ${url.pathname}${query}`;
       if (entries.has(entry)) return;
-      const record = { status: status ?? 0, headers: headers ?? [] };
+      const record = { status: status ?? 0, headers: headers ?? [], fields: fields ?? [] };
       entries.set(entry, record);
 
       if (listenerReady) publish(entry, record);
@@ -131,12 +163,13 @@
       const method = init?.method || (typeof input === 'object' ? input?.method : null) || 'GET';
       const rawHeaders = init?.headers ?? (typeof input === 'object' ? input?.headers : null);
       const sent = headerNames(rawHeaders);
+      const fields = bodyFields(init?.body);
       captureCsrfFrom(rawHeaders);
       const result = originalFetch.apply(this, arguments);
       // Observe the outcome without altering the promise the caller receives.
       Promise.resolve(result).then(
-        (response) => report(method, url, response?.status, sent),
-        () => report(method, url, 0, sent),
+        (response) => report(method, url, response?.status, sent, fields),
+        () => report(method, url, 0, sent, fields),
       );
       return result;
     };
@@ -160,12 +193,13 @@
     return originalSetHeader.apply(this, arguments);
   };
 
-  XMLHttpRequest.prototype.send = function send() {
+  XMLHttpRequest.prototype.send = function send(body) {
     const info = this[marker];
     if (info) {
+      const fields = bodyFields(body);
       this.addEventListener(
         'loadend',
-        () => report(info.method, info.url, this.status, [...new Set(info.headers)].sort()),
+        () => report(info.method, info.url, this.status, [...new Set(info.headers)].sort(), fields),
         { once: true },
       );
     }

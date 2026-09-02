@@ -25,9 +25,25 @@ export const STEP = {
   DONE: 'done',
 };
 
-function filenameFor(index, url) {
-  const ext = /\.(jpe?g|png|webp)(\?|$)/i.exec(url || '')?.[1] || 'jpg';
-  return `photo-${index + 1}.${ext.toLowerCase()}`;
+const EXTENSION_FOR_TYPE = {
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+  'image/avif': 'avif',
+};
+
+/**
+ * Name the upload after what the file actually is. Vinted's image URLs do not
+ * always carry an extension, and guessing ".jpg" for a WebP gives the upload a
+ * filename that contradicts its content type.
+ */
+function filenameFor(index, url, blob) {
+  const fromType = EXTENSION_FOR_TYPE[String(blob?.type || '').toLowerCase()];
+  const fromUrl = /\.(jpe?g|png|webp|gif|avif)(\?|$)/i.exec(url || '')?.[1]?.toLowerCase();
+  const ext = fromType || (fromUrl === 'jpeg' ? 'jpg' : fromUrl) || 'jpg';
+  return `photo-${index + 1}.${ext}`;
 }
 
 /**
@@ -81,7 +97,7 @@ export async function relistItem(api, itemId, options = {}) {
     const blob = await api.downloadPhoto(photo.url, { signal });
     const result = await api.uploadPhoto(blob, {
       tempUuid,
-      filename: filenameFor(index, photo.url),
+      filename: filenameFor(index, photo.url, blob),
       signal,
     });
     uploaded.push({ id: result.id, orientation: photo.orientation ?? 0 });

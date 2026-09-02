@@ -55,7 +55,12 @@ export function createMockVinted({ items } = {}) {
           // Stand-in for the site's own front-end traffic, which is what the
           // recorder is supposed to observe.
           "fetch('/api/v2/feed?page=1&per_page=20',{headers:{'x-csrf-token':'token-from-site','locale':'nl'}});" +
-          "var x=new XMLHttpRequest();x.open('POST','/api/v2/tracking');x.send();" +
+          "var x=new XMLHttpRequest();x.open('POST','/api/v2/tracking');" +
+          "x.setRequestHeader('x-csrf-token','token-from-site');x.send();" +
+          // A multipart write, so the recorder's field-name capture is covered.
+          "var f=new FormData();f.append('photo[type]','item_photo');" +
+          "f.append('photo[file]',new Blob(['x'],{type:'image/png'}),'a.png');" +
+          "fetch('/api/v2/photos',{method:'POST',body:f,headers:{'x-csrf-token':'token-from-site'}});" +
           '</script></body></html>',
       );
       return;
