@@ -156,16 +156,40 @@
 
       const blob = await api.downloadPhoto(photo.url);
       const filename = filenameFor(0, photo.url, blob);
-      const result = await api.uploadPhoto(blob, { tempUuid: uuid(), filename });
-      return {
-        ok: true,
-        photoId: result.id,
+      const size = await imageSize(blob);
+      const shared = {
         filename,
         type: blob.type || 'onbekend',
         sizeKb: Math.round((blob.size || 0) / 1024),
+        dimensions: size ? `${size.width}×${size.height}` : 'onbekend',
+        photoSource: photo.source,
+        photoFields: photo.available,
       };
+
+      try {
+        const result = await api.uploadPhoto(blob, { tempUuid: uuid(), filename });
+        return { ok: true, photoId: result.id, ...shared };
+      } catch (error) {
+        return { ok: false, error: error.message, ...shared };
+      }
     } catch (error) {
       return { ok: false, error: error.message };
+    }
+  }
+
+  /**
+   * Pixel dimensions of what we are about to upload. A photo URL that quietly
+   * serves a thumbnail produces a plausible-looking JPEG that Vinted refuses,
+   * and the byte size alone does not reveal that.
+   */
+  async function imageSize(blob) {
+    try {
+      const bitmap = await createImageBitmap(blob);
+      const size = { width: bitmap.width, height: bitmap.height };
+      bitmap.close?.();
+      return size;
+    } catch {
+      return null;
     }
   }
 

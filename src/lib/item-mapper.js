@@ -67,15 +67,20 @@ function extractPhotos(raw) {
   const photos = Array.isArray(raw.photos) ? raw.photos : [];
   return photos
     .map((photo, index) => {
-      const url =
-        photo.full_size_url ||
-        photo.high_resolution?.full_size_url ||
-        photo.url ||
-        photo.image_url ||
-        null;
-      if (!url) return null;
+      // Which field we take matters: some of these are thumbnails, and
+      // uploading a thumbnail as the replacement photo gets it rejected.
+      const candidates = [
+        ['high_resolution.full_size_url', photo.high_resolution?.full_size_url],
+        ['full_size_url', photo.full_size_url],
+        ['url', photo.url],
+        ['image_url', photo.image_url],
+      ];
+      const chosen = candidates.find(([, value]) => Boolean(value));
+      if (!chosen) return null;
       return {
-        url,
+        url: chosen[1],
+        source: chosen[0],
+        available: candidates.filter(([, value]) => Boolean(value)).map(([name]) => name),
         originalId: photo.id ?? null,
         orientation: Number.isInteger(photo.orientation) ? photo.orientation : 0,
         index,

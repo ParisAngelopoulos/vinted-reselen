@@ -65,6 +65,12 @@ test('normalizeItem reads the public item shape', () => {
   assert.equal(item.brandTitle, 'Levi’s');
   assert.deepEqual(item.colorIds, [3], 'colour id 0 is a placeholder and must be dropped');
   assert.equal(item.photos[0].url, 'https://images.vinted.net/big.jpg');
+  assert.equal(item.photos[0].source, 'high_resolution.full_size_url');
+  assert.deepEqual(
+    item.photos[0].available,
+    ['high_resolution.full_size_url', 'url'],
+    'knowing which variants exist tells us whether a thumbnail was uploaded',
+  );
   assert.equal(item.isSold, true);
 });
 
