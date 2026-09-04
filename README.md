@@ -57,8 +57,14 @@ online en verlopen vanzelf.
 ## Hoe het werkt
 
 De extensie gebruikt dezelfde interne endpoints als de Vinted-website zelf. Alle
-verzoeken lopen via een content script op de Vinted-pagina, dus je normale sessiecookies
-gelden en er wordt niets aan inloggegevens gelezen, opgeslagen of verstuurd. Per item:
+API-verzoeken lopen via een content script op de Vinted-pagina, dus je normale
+sessiecookies gelden en er wordt niets aan inloggegevens gelezen, opgeslagen of verstuurd.
+
+Eén stap gaat bewust een andere weg: het downloaden van je bestaande foto's. Die staan op
+`images*.vinted.net` en niet op de site zelf, en een content script mag zo'n ander domein
+niet lezen — sinds Chrome 85 gelden daar de CORS-regels van de pagina in plaats van de
+rechten van de extensie. Dat downloaden doet de service worker daarom, zonder cookies mee
+te sturen. Per item:
 
 ```
 gegevens ophalen  →  controleren  →  foto's downloaden en opnieuw uploaden
@@ -95,6 +101,7 @@ uploadsessie — dat is de stap die het vaakst misgaat, en een test die alleen l
 
 | Wat je ziet | Wat het betekent |
 | --- | --- |
+| `Failed to fetch` bij het overzetten van een foto | De foto staat op een ander domein (`images*.vinted.net`) dat de extensie niet mag lezen. Het rapport noemt het domein; staat dat niet bij de rechten in `manifest.json`, dan moet het daar bij. |
 | `Cookies: GEEN` | Je bent op díe Vinted-site niet ingelogd. Let op het domein bovenaan het rapport — ingelogd zijn op vinted.be helpt niet als de extensie vinted.nl opent. |
 | `Accès refusé` / 403 bij het uploaden, terwijl ophalen werkt | Het CSRF-token ontbreekt. Open Vinted en ververs de pagina: de extensie leest het token dan af van de site. |
 | Een 403 met "een webpagina in plaats van API-gegevens" | Het verzoek vroeg niet om JSON, of het endpoint is buiten gebruik. Kijk bij **Waargenomen endpoints** welke paden en headers de site zelf gebruikt. |
@@ -147,7 +154,13 @@ npm run package     # zip voor distributie
 
 De e2e-test heeft Playwright nodig (`npm install`). Hij start een lokale server die de
 Vinted-API nabootst, laat Chromium `www.vinted.nl` daarheen wijzen, laadt de extensie en
-doet een volledige relist via de echte popup-interface.
+doet een volledige relist via de echte popup-interface. De foto's serveert die server op
+`images1.vinted.net`, net als de echte site, zodat het verschil tussen dezelfde en een
+andere origin ook echt getest wordt.
+
+Staat er al een Chromium op de machine, dan gebruikt de test die met
+`CHROMIUM_PATH=/pad/naar/chrome npm run test:e2e` — handig als het downloaden van
+Playwright's eigen browser niet kan.
 
 ```
 src/lib/        gedeelde logica (API-client, mapping, planning) — zonder chrome.* waar mogelijk

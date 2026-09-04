@@ -366,3 +366,87 @@ test('UPLOAD_FIELD_NAMES states that same order', async () => {
   const { UPLOAD_FIELD_NAMES } = await import('../src/lib/api.js');
   assert.deepEqual(UPLOAD_FIELD_NAMES, ['photo[type]', 'photo[file]', 'photo[temp_uuid]']);
 });
+
+// --- photos on another host ------------------------------------------------
+//
+// Vinted serves item photos from images*.vinted.net while the extension runs on
+// vinted.<tld>. A content script may not read those directly: since Chrome 85
+// it follows the page's CORS rules rather than the extension's host
+// permissions, and the CDN sends no Access-Control-Allow-Origin. Reading it
+// there fails with a bare TypeError, which is what broke every relist on its
+// first photo.
+
+const CDN_PHOTO = 'https://images1.vinted.net/t/photo/1.jpg';
+
+test('a photo on the site itself is read directly', async () => {
+  const client = api({});
+  let direct = false;
+  client.fetchImpl = async () => {
+    direct = true;
+    return new Response(new Blob(['x'], { type: 'image/jpeg' }), { status: 200 });
+  };
+  client.loadCrossOriginPhoto = async () => {
+    throw new Error('de proxy hoort niet gebruikt te worden voor dezelfde origin');
+  };
+
+  const blob = await client.downloadPhoto('https://www.vinted.nl/photo/1.jpg');
+  assert.ok(direct, 'een same-origin foto hoort gewoon opgehaald te worden');
+  assert.equal(blob.type, 'image/jpeg');
+});
+
+test('a photo on the CDN goes through the service worker instead', async () => {
+  const client = api({});
+  client.fetchImpl = async () => {
+    // What the browser really does for a cross-origin read the CDN does not allow.
+    throw new TypeError('Failed to fetch');
+  };
+  let asked = null;
+  client.loadCrossOriginPhoto = async (url) => {
+    asked = url;
+    return new Blob(['bytes'], { type: 'image/jpeg' });
+  };
+
+  const blob = await client.downloadPhoto(CDN_PHOTO);
+  assert.equal(asked, CDN_PHOTO, 'de foto hoort via de worker opgehaald te worden');
+  assert.equal(blob.type, 'image/jpeg');
+});
+
+test('without a worker route a blocked photo says so instead of "Failed to fetch"', async () => {
+  const client = api({});
+  client.fetchImpl = async () => {
+    throw new TypeError('Failed to fetch');
+  };
+
+  await assert.rejects(
+    () => client.downloadPhoto(CDN_PHOTO),
+    (error) => {
+      assert.match(error.message, /ander domein/, 'de reden hoort benoemd te worden');
+      return true;
+    },
+  );
+});
+
+test('when the worker cannot fetch it either, its reason is the one reported', async () => {
+  const client = api({});
+  client.fetchImpl = async () => {
+    throw new TypeError('Failed to fetch');
+  };
+  client.loadCrossOriginPhoto = async () => {
+    throw new Error('Mogelijk staat dat domein niet in de rechten van de extensie.');
+  };
+
+  await assert.rejects(
+    () => client.downloadPhoto(CDN_PHOTO),
+    (error) => {
+      assert.match(error.message, /rechten van de extensie/);
+      return true;
+    },
+  );
+});
+
+test('isCrossOrigin separates the site from its photo CDN', () => {
+  const client = api({});
+  assert.equal(client.isCrossOrigin('https://www.vinted.nl/photo/1.jpg'), false);
+  assert.equal(client.isCrossOrigin('/photo/1.jpg'), false, 'een relatief pad is dezelfde origin');
+  assert.equal(client.isCrossOrigin(CDN_PHOTO), true);
+});

@@ -7,6 +7,7 @@ export const MSG = {
   LIST_ITEMS: 'relist:list-items',
   DIAGNOSE: 'relist:diagnose',
   RECORD_ENDPOINT: 'relist:record-endpoint',
+  FETCH_PHOTO: 'relist:fetch-photo',
   START: 'relist:start',
   CANCEL: 'relist:cancel',
   GET_STATE: 'relist:get-state',

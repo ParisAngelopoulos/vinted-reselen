@@ -86,12 +86,16 @@ export class VintedApi {
     locale = null,
     minGapMs = 900,
     fetchImpl = globalThis.fetch.bind(globalThis),
+    loadCrossOriginPhoto = null,
   } = {}) {
     this.origin = (origin || globalThis.location?.origin || '').replace(/\/$/, '');
     this.csrfToken = csrfToken;
     this.anonId = anonId;
     this.locale = locale;
     this.fetchImpl = fetchImpl;
+    // Photos live on a different host than the site, which a content script
+    // may not read directly; see downloadPhoto.
+    this.loadCrossOriginPhoto = loadCrossOriginPhoto;
     this.throttle = new Throttle(minGapMs);
     this.maxRetries = 3;
   }
@@ -393,19 +397,71 @@ export class VintedApi {
 
   // --------------------------------------------------------------- photos --
 
-  /** Download an existing item photo so it can be re-uploaded. */
-  async downloadPhoto(url, { signal } = {}) {
-    const response = await this.throttle.run(
-      () => this.fetchImpl(url, { credentials: 'omit', signal }),
-      { signal },
-    );
+  /** True when `url` is served by a host other than the page we run on. */
+  isCrossOrigin(url) {
+    try {
+      return new URL(url, this.origin || undefined).origin !== this.origin;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Fetch the photo bytes.
+   *
+   * Vinted serves item photos from images*.vinted.net while the extension runs
+   * on vinted.<tld>, so this is a cross-origin read. Since Chrome 85 a content
+   * script is bound by the page's CORS rules instead of the extension's host
+   * permissions, and the CDN sends no Access-Control-Allow-Origin — so reading
+   * it here fails with a bare "Failed to fetch". The service worker does still
+   * have those permissions, so cross-origin photos are fetched through it.
+   *
+   * A direct read is still attempted as a fallback, for a CDN that does allow
+   * it and for the same-origin case.
+   */
+  async fetchPhotoBlob(url, { signal } = {}) {
+    let proxyError = null;
+    if (this.loadCrossOriginPhoto && this.isCrossOrigin(url)) {
+      try {
+        return await this.loadCrossOriginPhoto(url, { signal });
+      } catch (error) {
+        if (signal?.aborted) throw error;
+        // Fall through to the direct attempt, but keep this reason: when both
+        // routes fail it is the more informative of the two.
+        proxyError = error;
+      }
+    }
+
+    let response;
+    try {
+      response = await this.throttle.run(
+        () => this.fetchImpl(url, { credentials: 'omit', signal }),
+        { signal },
+      );
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      // A CORS refusal arrives as a bare TypeError carrying no status at all.
+      throw new VintedApiError(
+        proxyError
+          ? proxyError.message
+          : `Foto downloaden mislukt: ${error.message} — de foto staat op een ander domein ` +
+            'dan de Vinted-pagina en mag daar niet gelezen worden.',
+        { path: url, method: 'GET' },
+      );
+    }
+
     if (!response.ok) {
       throw new VintedApiError(`Foto downloaden mislukt (${response.status}).`, {
         status: response.status,
         path: url,
       });
     }
-    const blob = await response.blob();
+    return response.blob();
+  }
+
+  /** Download an existing item photo so it can be re-uploaded. */
+  async downloadPhoto(url, { signal } = {}) {
+    const blob = await this.fetchPhotoBlob(url, { signal });
     if (!blob.size) {
       throw new VintedApiError('Foto downloaden leverde een leeg bestand op.', { path: url });
     }

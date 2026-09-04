@@ -86,10 +86,25 @@ document.getElementById('clear-backups').addEventListener('click', async () => {
 /** The result of actually uploading one photo — the step that breaks. */
 function formatUploadProbe(probe) {
   if (!probe) return 'Foto-upload:     niet getest.';
+
+  // A photo that could not even be downloaded never reached Vinted. Reporting
+  // that as a refused upload sends the user looking in the wrong place.
+  if (probe.stage === 'download') {
+    return [
+      'Foto downloaden: MISLUKT',
+      `  ${probe.error}`,
+      `  De foto staat op ${probe.photoHost} (veld ${probe.photoSource}).`,
+      '',
+      '  Dat is een ander domein dan de Vinted-pagina zelf. De extensie haalt zulke',
+      '  foto’s via de service worker op; lukt dat niet, dan ontbreekt dat domein',
+      '  waarschijnlijk bij "host_permissions" in manifest.json.',
+    ].join('\n');
+  }
+
   const details = probe.filename
     ? [
         `  bestand:   ${probe.filename}, ${probe.type}, ${probe.sizeKb} kB, ${probe.dimensions} px`,
-        `  bron:      ${probe.photoSource} (beschikbaar: ${(probe.photoFields || []).join(', ')})`,
+        `  bron:      ${probe.photoSource} op ${probe.photoHost || 'onbekend'} (beschikbaar: ${(probe.photoFields || []).join(', ')})`,
       ]
     : [];
 

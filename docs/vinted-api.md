@@ -36,6 +36,23 @@ aanmaak-endpoint verwacht. De publieke variant heeft een andere vorm (`brand_dto
 plaats van `brand_id`/`brand`, `color1_id`/`color2_id` in plaats van `color_ids`);
 `normalizeItem()` in [`src/lib/item-mapper.js`](../src/lib/item-mapper.js) vangt beide af.
 
+## Foto's ophalen
+
+De foto's van een bestaande advertentie staan niet op de site zelf maar op
+`images*.vinted.net` (het veld `photos[].full_size_url`). Voor een content script op
+`vinted.<tld>` is dat een andere origin, en sinds Chrome 85 gelden daarvoor de
+CORS-regels van de pagina in plaats van de host-rechten van de extensie. De CDN stuurt
+geen `Access-Control-Allow-Origin`, dus daar lezen mislukt met een kale
+`TypeError: Failed to fetch` — zonder statuscode, wat het lastig te herkennen maakt.
+
+De service worker heeft die host-rechten wél. Het downloaden gebeurt daarom in
+[`src/background/service-worker.js`](../src/background/service-worker.js) (`fetchPhoto`,
+zonder cookies) en de bytes gaan als data-URL terug naar het content script, omdat
+`chrome.runtime`-berichten JSON zijn en een `Blob` daar niet doorheen komt.
+
+Staat `*://*.vinted.net/*` niet bij `host_permissions` in `manifest.json`, dan faalt dit
+alsnog — de foutmelding noemt dan het domein dat ontbreekt.
+
 ## Schrijven
 
 | Doel | Aanroep |

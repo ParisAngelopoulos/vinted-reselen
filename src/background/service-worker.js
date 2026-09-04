@@ -192,6 +192,69 @@ async function getCsrfToken() {
   return { token: stored?.csrfToken ?? null };
 }
 
+// ----------------------------------------------------------- photo proxy ---
+
+/**
+ * Download an item photo on behalf of the content script.
+ *
+ * Vinted serves photos from images*.vinted.net, not from the site itself, so
+ * for the content script this is a cross-origin request. Since Chrome 85 a
+ * content script no longer borrows the extension's host permissions for that:
+ * it is bound by the page's CORS rules, and Vinted's CDN sends no
+ * Access-Control-Allow-Origin. Every photo download therefore failed with a
+ * bare "Failed to fetch" — the first step of every relist.
+ *
+ * The worker does still have those host permissions, so the download happens
+ * here and the bytes go back base64-encoded: chrome.runtime messages are JSON,
+ * so a Blob cannot cross directly.
+ */
+async function fetchPhoto(url) {
+  if (!url) throw new Error('Geen foto-URL opgegeven.');
+
+  let response;
+  try {
+    response = await fetch(url, { credentials: 'omit' });
+  } catch (error) {
+    // Nearly always a host this extension has no permission for: the manifest
+    // lists the Vinted domains, and a photo served from anywhere else cannot
+    // be read. Name the host, because that is what has to be added.
+    throw new Error(
+      `Foto ophalen mislukt voor ${hostOf(url)}: ${error.message}. ` +
+        'Mogelijk staat dat domein niet in de rechten van de extensie.',
+    );
+  }
+  if (!response.ok) {
+    throw new Error(`Foto downloaden mislukt (${response.status}) bij ${hostOf(url)}.`);
+  }
+
+  const type = response.headers.get('content-type') || 'application/octet-stream';
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (!bytes.length) throw new Error(`Foto downloaden leverde een leeg bestand op (${hostOf(url)}).`);
+
+  return { base64: base64From(bytes), type, size: bytes.length };
+}
+
+function hostOf(url) {
+  try {
+    return new URL(url).host;
+  } catch {
+    return String(url).slice(0, 80);
+  }
+}
+
+/**
+ * Base64 for a byte array. Chunked because btoa takes a string and spreading a
+ * multi-megabyte array into String.fromCharCode at once overflows the stack.
+ */
+function base64From(bytes) {
+  const CHUNK = 0x8000;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binary);
+}
+
 // --------------------------------------------------------------- routing ---
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -201,6 +264,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     [MSG.DIAGNOSE]: () => diagnose(),
     [MSG.SET_CSRF]: () => setCsrfToken(message.payload?.token),
     [MSG.GET_CSRF]: () => getCsrfToken(),
+    [MSG.FETCH_PHOTO]: () => fetchPhoto(message.payload?.url),
     [MSG.START]: () => startRun(message.payload),
     [MSG.CANCEL]: () => cancelRun(),
   };

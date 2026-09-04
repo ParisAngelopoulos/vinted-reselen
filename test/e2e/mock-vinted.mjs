@@ -11,6 +11,14 @@ const ONE_PIXEL_PNG = Buffer.from(
   'base64',
 );
 
+/**
+ * Vinted serves item photos from a separate CDN host, not from the site
+ * itself. That difference decides whether the download is same-origin, so the
+ * mock has to reproduce it — with a CDN that sends no CORS header, as Vinted's
+ * does not.
+ */
+export const PHOTO_HOST = 'http://images1.vinted.net';
+
 export function createMockVinted({ items } = {}) {
   const calls = [];
   const state = {
@@ -176,8 +184,8 @@ function defaultItems() {
       color_ids: [1],
       created_at_ts: '2025-01-01T10:00:00Z',
       photos: [
-        { id: 1, full_size_url: 'http://www.vinted.nl/photo/1.png' },
-        { id: 2, full_size_url: 'http://www.vinted.nl/photo/2.png' },
+        { id: 1, full_size_url: `${PHOTO_HOST}/photo/1.png` },
+        { id: 2, full_size_url: `${PHOTO_HOST}/photo/2.png` },
       ],
     },
     {
@@ -193,7 +201,7 @@ function defaultItems() {
       package_size_id: 2,
       color_ids: [3],
       created_at_ts: '2025-02-01T10:00:00Z',
-      photos: [{ id: 3, full_size_url: 'http://www.vinted.nl/photo/3.png' }],
+      photos: [{ id: 3, full_size_url: `${PHOTO_HOST}/photo/3.png` }],
     },
     {
       id: 103,
@@ -202,7 +210,7 @@ function defaultItems() {
       price: { amount: '15.00', currency_code: 'EUR' },
       catalog_id: 221,
       is_closed: true,
-      photos: [{ id: 4, full_size_url: 'http://www.vinted.nl/photo/4.png' }],
+      photos: [{ id: 4, full_size_url: `${PHOTO_HOST}/photo/4.png` }],
     },
   ];
 }

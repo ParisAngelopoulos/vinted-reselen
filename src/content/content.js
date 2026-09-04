@@ -61,9 +61,43 @@
     }
   }
 
+  /**
+   * Fetch a photo that lives on another host (images*.vinted.net) through the
+   * service worker.
+   *
+   * A content script may not read it directly: since Chrome 85 it follows the
+   * page's CORS rules rather than the extension's host permissions, and the
+   * CDN sends no Access-Control-Allow-Origin. The worker still has those
+   * permissions, so it does the reading. Bytes come back base64-encoded because
+   * chrome.runtime messages are JSON — a Blob cannot cross as-is.
+   */
+  async function loadCrossOriginPhoto(url) {
+    const response = await chrome.runtime.sendMessage({
+      type: MSG.FETCH_PHOTO,
+      payload: { url },
+    });
+    if (!response?.ok) {
+      throw new Error(response?.error || 'Foto ophalen via de extensie mislukt.');
+    }
+    const { base64, type } = response.data;
+    // Decoded here rather than fetched as a data: URL, so no page or extension
+    // policy on network requests can get in the way of what is really just
+    // bytes we already hold.
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+
+    const blob = new Blob([bytes], { type });
+    if (!blob.size) throw new Error('Foto ophalen via de extensie leverde niets op.');
+    return blob;
+  }
+
   async function makeApi() {
     const settings = await loadSettings();
-    const api = VintedApi.fromPage({ minGapMs: settings.delayBetweenCallsMs ?? 900 });
+    const api = VintedApi.fromPage({
+      minGapMs: settings.delayBetweenCallsMs ?? 900,
+      loadCrossOriginPhoto,
+    });
     // Reading the token off the page only works when the front-end puts it
     // there. What the site actually sends is authoritative, so it wins.
     api.csrfToken = (await capturedCsrfToken()) ?? api.csrfToken;
@@ -156,7 +190,23 @@
       const photo = item.photos[0];
       if (!photo) return { ok: false, reason: 'die advertentie heeft geen foto' };
 
-      const blob = await api.downloadPhoto(photo.url);
+      // Downloading and uploading fail for entirely different reasons, so keep
+      // them apart: a photo that cannot even be read never reached Vinted, and
+      // reporting that as a refused upload sends the user looking in the wrong
+      // place. This is the step that broke — the photos sit on another host.
+      let blob;
+      try {
+        blob = await api.downloadPhoto(photo.url);
+      } catch (error) {
+        return {
+          ok: false,
+          stage: 'download',
+          error: error.message,
+          photoHost: hostOf(photo.url),
+          photoSource: photo.source,
+        };
+      }
+
       const filename = filenameFor(0, photo.url, blob);
       const size = await imageSize(blob);
       const shared = {
@@ -166,6 +216,7 @@
         sizeKb: Math.round((blob.size || 0) / 1024),
         dimensions: size ? `${size.width}×${size.height}` : 'onbekend',
         photoSource: photo.source,
+        photoHost: hostOf(photo.url),
         photoFields: photo.available,
       };
 
@@ -199,6 +250,15 @@
       };
     } catch (error) {
       return { ok: false, error: error.message };
+    }
+  }
+
+  /** Host of a URL, for a report that has to name where the photo lives. */
+  function hostOf(url) {
+    try {
+      return new URL(url, location.origin).host;
+    } catch {
+      return 'onbekend';
     }
   }
 

@@ -1,6 +1,6 @@
 {
   "name": "vinted-relister",
-  "version": "1.15.0",
+  "version": "1.16.0",
   "description": "Browser-extensie om je eigen Vinted-advertenties opnieuw te plaatsen.",
   "private": true,
   "type": "module",

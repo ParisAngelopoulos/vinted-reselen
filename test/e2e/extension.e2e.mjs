@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 import { chromium } from 'playwright';
 
-import { createMockVinted } from './mock-vinted.mjs';
+import { PHOTO_HOST, createMockVinted } from './mock-vinted.mjs';
 
 const EXTENSION_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PORT = 8099;
@@ -29,13 +29,17 @@ async function withBrowser(run) {
   await mock.listen(PORT);
 
   const userDataDir = mkdtempSync(join(tmpdir(), 'vinted-relister-'));
+  // Use a browser that is already on the machine when one is pointed at, so the
+  // test also runs where Playwright's own download is unavailable or pinned to
+  // a different revision.
+  const executablePath = process.env.CHROMIUM_PATH || undefined;
   const context = await chromium.launchPersistentContext(userDataDir, {
     headless: true,
-    channel: 'chromium',
+    ...(executablePath ? { executablePath } : { channel: 'chromium' }),
     args: [
       `--disable-extensions-except=${EXTENSION_DIR}`,
       `--load-extension=${EXTENSION_DIR}`,
-      `--host-resolver-rules=MAP www.vinted.nl 127.0.0.1:${PORT}, MAP *.vinted.nl 127.0.0.1:${PORT}`,
+      `--host-resolver-rules=MAP www.vinted.nl 127.0.0.1:${PORT}, MAP *.vinted.nl 127.0.0.1:${PORT}, MAP *.vinted.net 127.0.0.1:${PORT}`,
       '--ignore-certificate-errors',
       '--no-sandbox',
     ],
@@ -167,6 +171,44 @@ check('de verbindingstest rapporteert per aanroep wat Vinted antwoordt', async (
   assert.doesNotMatch(output, /Log opnieuw in/i);
   // The connection test must exercise the step that actually breaks.
   assert.match(output, /Foto-upload:\s+GELUKT/);
+
+  await page.close();
+  await vinted.close();
+});
+
+check("foto's op het CDN-domein worden opgehaald ondanks CORS", async ({
+  context,
+  extensionId,
+  mock,
+}) => {
+  // Vinted serves item photos from images*.vinted.net. A content script may not
+  // read those directly — since Chrome 85 it follows the page's CORS rules
+  // instead of the extension's host permissions, and the CDN sends no
+  // Access-Control-Allow-Origin — so the download has to go through the service
+  // worker. Without that, every relist dies on its first photo with
+  // "Failed to fetch".
+  const vinted = await context.newPage();
+  await vinted.goto('http://www.vinted.nl/member/1');
+
+  const page = await context.newPage();
+  await page.goto(`chrome-extension://${extensionId}/src/options/options.html`);
+  await page.click('#run-diagnose');
+  await page.waitForFunction(
+    () => !document.getElementById('diagnose-output').textContent.startsWith('Bezig'),
+    { timeout: 20_000 },
+  );
+
+  const output = await page.textContent('#diagnose-output');
+  assert.match(output, /Foto-upload:\s+GELUKT/, 'de foto op het CDN hoort gedownload te zijn');
+  assert.doesNotMatch(output, /Failed to fetch/, 'dit is precies de CORS-fout die hier hoort weg te zijn');
+
+  // And it really came from the CDN host, not from the site itself: without
+  // that this check would still pass if the photo moved back same-origin.
+  const cdnHost = new URL(PHOTO_HOST).host;
+  const fromCdn = mock.calls.filter(
+    (call) => call.path.startsWith('/photo/') && call.headers.host === cdnHost,
+  );
+  assert.ok(fromCdn.length > 0, `geen foto opgehaald bij ${cdnHost}`);
 
   await page.close();
   await vinted.close();
